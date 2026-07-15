@@ -3,13 +3,16 @@ from PySide6.QtWidgets import (
     QComboBox,
     QCheckBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QLayout,
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -57,7 +60,9 @@ class MethodEditor(QWidget):
         form.addRow("Kết quả *", self.finding)
         form.addRow("Mức độ 0–10", self.severity)
         form.addRow("Ghi chú", self.note)
-        layout.addLayout(form)
+        entry_box = QGroupBox("Nhập thông tin Văn chẩn")
+        entry_box.setLayout(form)
+        layout.addWidget(entry_box)
         buttons = QHBoxLayout()
         add = QPushButton("Thêm kết quả")
         add.clicked.connect(self.add_entry)
@@ -72,7 +77,12 @@ class MethodEditor(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
-        layout.addWidget(self.table, 1)
+        self.table.setMaximumHeight(190)
+        self.empty_table = QLabel("Chưa có dữ liệu Văn chẩn đã lưu.")
+        self.empty_table.setObjectName("subtitle")
+        layout.addWidget(self.empty_table)
+        layout.addWidget(self.table)
+        layout.addStretch()
 
     def set_consultation(self, consultation_id: int | None) -> None:
         self.consultation_id = consultation_id
@@ -84,6 +94,8 @@ class MethodEditor(QWidget):
             if row["method"] == self.method
         ]
         self.table.setRowCount(len(rows))
+        self.table.setVisible(bool(rows))
+        self.empty_table.setVisible(not rows)
         for row_index, entry in enumerate(rows):
             values = (entry["category"], entry["finding"], entry.get("severity"), entry["note"])
             for column, value in enumerate(values):
@@ -289,22 +301,26 @@ class InquiryEditor(QWidget):
         hint = QLabel("Nhập theo Thập vấn; bác sĩ xác minh trước quyết định điều trị.")
         hint.setObjectName("subtitle")
         outer.addWidget(hint)
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
         content = QWidget()
-        form = QFormLayout(content)
+        form = QGridLayout(content)
+        form.setColumnStretch(1, 1)
+        form.setColumnStretch(3, 1)
         self.inputs: dict[str, QTextEdit] = {}
-        for key, label, placeholder in self.FIELDS:
+        for index, (key, label, placeholder) in enumerate(self.FIELDS):
             field = QTextEdit()
             field.setPlaceholderText(placeholder)
             field.setMaximumHeight(54)
             self.inputs[key] = field
-            form.addRow(label, field)
+            row, pair = divmod(index, 2)
+            column = pair * 2
+            form.addWidget(QLabel(label), row, column)
+            form.addWidget(field, row, column + 1)
         self.recorded_by = QLineEdit()
         self.recorded_by.setPlaceholderText("Họ tên bác sĩ/y tá hỏi bệnh")
-        form.addRow("Người hỏi *", self.recorded_by)
-        scroll.setWidget(content)
-        outer.addWidget(scroll, 1)
+        last_row = (len(self.FIELDS) + 1) // 2
+        form.addWidget(QLabel("Người hỏi *"), last_row, 0)
+        form.addWidget(self.recorded_by, last_row, 1, 1, 3)
+        outer.addWidget(content)
         buttons = QHBoxLayout()
         save = QPushButton("Lưu Vấn chẩn")
         save.clicked.connect(self.save)
@@ -317,7 +333,6 @@ class InquiryEditor(QWidget):
 
     def set_consultation(self, consultation_id: int | None) -> None:
         self.consultation_id = consultation_id
-        self.setEnabled(consultation_id is not None)
         self.refresh()
 
     def refresh(self) -> None:
@@ -360,9 +375,11 @@ class PalpationEditor(QWidget):
         self.repository = repository
         self.consultation_id: int | None = None
         outer = QVBoxLayout(self)
+        content = QWidget()
+        content_layout = QVBoxLayout(content)
         hint = QLabel("Nhập mạch và xúc chẩn thủ công; chưa kết nối thiết bị ngoại vi.")
         hint.setObjectName("subtitle")
-        outer.addWidget(hint)
+        content_layout.addWidget(hint)
         pulse_box = QGroupBox("Mạch chẩn — Thốn, Quan, Xích")
         pulse_form = QFormLayout(pulse_box)
         row = QHBoxLayout()
@@ -410,8 +427,9 @@ class PalpationEditor(QWidget):
         )
         self.pulse_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.pulse_table.horizontalHeader().setStretchLastSection(True)
+        self.pulse_table.setMaximumHeight(170)
         pulse_form.addRow(self.pulse_table)
-        outer.addWidget(pulse_box)
+        content_layout.addWidget(pulse_box)
 
         touch_box = QGroupBox("Xúc chẩn — sờ nắn")
         touch_form = QFormLayout(touch_box)
@@ -440,12 +458,14 @@ class PalpationEditor(QWidget):
         self.touch_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.touch_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.touch_table.horizontalHeader().setStretchLastSection(True)
+        self.touch_table.setMaximumHeight(170)
         touch_form.addRow(self.touch_table)
-        outer.addWidget(touch_box)
+        content_layout.addWidget(touch_box)
+        content_layout.addStretch()
+        outer.addWidget(content)
 
     def set_consultation(self, consultation_id: int | None) -> None:
         self.consultation_id = consultation_id
-        self.setEnabled(consultation_id is not None)
         self.refresh()
 
     def refresh(self) -> None:
@@ -530,6 +550,8 @@ class SyndromeEditor(QWidget):
         self.treatment.setWordWrap(True)
         self.confidence = QSpinBox()
         self.confidence.setRange(0, 100)
+        self.confidence.setSingleStep(5)
+        self.confidence.setSuffix(" %")
         self.evidence = QTextEdit()
         self.evidence.setMaximumHeight(72)
         self.evidence.setPlaceholderText("Dấu hiệu Tứ chẩn hỗ trợ nhận định")
@@ -572,7 +594,6 @@ class SyndromeEditor(QWidget):
 
     def set_consultation(self, consultation_id: int | None) -> None:
         self.consultation_id = consultation_id
-        self.setEnabled(consultation_id is not None)
         self.refresh()
 
     def show_reference(self) -> None:
@@ -599,6 +620,7 @@ class SyndromeEditor(QWidget):
 
     def analyse(self) -> None:
         if self.consultation_id is None:
+            QMessageBox.information(self, "Chưa chọn", "Hãy chọn lần khám trước.")
             return
         results = suggest(self.repository.clinical_text(self.consultation_id), self.syndromes)
         if not results:
@@ -613,7 +635,10 @@ class SyndromeEditor(QWidget):
         )
 
     def save(self) -> None:
-        if self.consultation_id is None or self.syndrome.currentData() is None:
+        if self.consultation_id is None:
+            QMessageBox.information(self, "Chưa chọn", "Hãy chọn lần khám trước.")
+            return
+        if self.syndrome.currentData() is None:
             return
         try:
             self.repository.save(self.consultation_id, int(self.syndrome.currentData()), {
@@ -700,12 +725,23 @@ class DiagnosisPage(QWidget):
                 else MethodEditor(self.consultations, method, hint)
             )
             self.editors.append(editor)
-            tabs.addTab(editor, name)
+            tabs.addTab(self._scrollable(editor), name)
         syndrome_editor = SyndromeEditor(self.syndromes)
         self.editors.append(syndrome_editor)
-        tabs.addTab(syndrome_editor, "Biện chứng luận trị")
+        tabs.addTab(self._scrollable(syndrome_editor), "Biện chứng luận trị")
         layout.addWidget(tabs, 1)
         self.reload_patients()
+
+    @staticmethod
+    def _scrollable(editor: QWidget) -> QScrollArea:
+        editor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        if editor.layout() is not None:
+            editor.layout().setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(editor)
+        return scroll
 
     def reload_patients(self) -> None:
         self.patient.blockSignals(True)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QFormLayout,
@@ -31,6 +32,7 @@ class PrescriptionPage(QWidget):
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
         self.prescription_ids: list[int] = []
+        self.recommendation_rows: dict[int, dict] = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
@@ -60,6 +62,7 @@ class PrescriptionPage(QWidget):
         editor = QWidget()
         form = QFormLayout(editor)
         self.recommendation = QComboBox()
+        self.recommendation.currentIndexChanged.connect(self.load_recommendation)
         self.diagnosis = QTextEdit()
         self.diagnosis.setMaximumHeight(70)
         self.principle = QLineEdit()
@@ -106,36 +109,78 @@ class PrescriptionPage(QWidget):
         layout.addWidget(splitter, 1)
         self.refresh_patients()
 
-    def refresh_patients(self) -> None:
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh_patients(preserve_selection=True)
+
+    def refresh_patients(self, preserve_selection: bool = False) -> None:
+        selected_id = self.patient.currentData() if preserve_selection else None
+        self.patient.blockSignals(True)
         self.patient.clear()
         self.patient.addItem("Chọn bệnh nhân", None)
         for row in self.patients.list():
             self.patient.addItem(f"{row['code']} — {row['full_name']}", row["id"])
+        if selected_id is not None:
+            index = self.patient.findData(selected_id)
+            self.patient.setCurrentIndex(max(index, 0))
+        self.patient.blockSignals(False)
         self.refresh_visits()
 
     def refresh_visits(self) -> None:
+        selected_id = self.visit.currentData()
+        self.visit.blockSignals(True)
         self.visit.clear()
+        self.visit.addItem("Chọn lần khám", None)
         patient_id = self.patient.currentData()
+        rows = []
         if patient_id is not None:
-            for row in self.consultations.list_for_patient(int(patient_id)):
-                self.visit.addItem(f"{row['visit_code']} — {row['created_at']}", row["id"])
+            rows = self.consultations.list_for_patient(int(patient_id))
+        for row in rows:
+            self.visit.addItem(f"{row['visit_code']} — {row['created_at']}", row["id"])
+        if not rows:
+            self.visit.addItem("Chưa có lần khám", None)
+        elif selected_id is not None:
+            index = self.visit.findData(selected_id)
+            self.visit.setCurrentIndex(max(index, 0))
+        self.visit.blockSignals(False)
         self.refresh_context()
 
     def refresh_context(self) -> None:
         consultation_id = self.visit.currentData()
+        self.recommendation.blockSignals(True)
         self.recommendation.clear()
+        self.recommendation.addItem("Chọn bài thuốc đã duyệt", None)
         rows = []
         if consultation_id is not None:
             rows = self.prescriptions.approved_recommendations(int(consultation_id))
+        self.recommendation_rows = {int(row["id"]): row for row in rows}
         for row in rows:
             self.recommendation.addItem(row["formula_name"], row["id"])
-        if rows:
-            row = rows[0]
-            self.directions.setPlainText(row["custom_directions"])
-            self.modifications.setPlainText(row["modifications"])
-            self.safety.setPlainText(row["safety_notes"])
-            self.principle.setText(row["treatment_principle"])
+        if not rows:
+            self.recommendation.addItem("Chưa có bài thuốc đã duyệt", None)
+        self.recommendation.blockSignals(False)
+        self.clear_recommendation_detail()
         self.refresh_prescriptions()
+
+    def load_recommendation(self) -> None:
+        recommendation_id = self.recommendation.currentData()
+        if recommendation_id is None:
+            self.clear_recommendation_detail()
+            return
+        row = self.recommendation_rows.get(int(recommendation_id))
+        if row is None:
+            self.clear_recommendation_detail()
+            return
+        self.directions.setPlainText(row["custom_directions"] or "")
+        self.modifications.setPlainText(row["modifications"] or "")
+        self.safety.setPlainText(row["safety_notes"] or "")
+        self.principle.setText(row["treatment_principle"] or "")
+
+    def clear_recommendation_detail(self) -> None:
+        self.directions.clear()
+        self.modifications.clear()
+        self.safety.clear()
+        self.principle.clear()
 
     def refresh_prescriptions(self) -> None:
         consultation_id = self.visit.currentData()

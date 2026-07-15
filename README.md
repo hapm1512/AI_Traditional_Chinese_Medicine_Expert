@@ -1,8 +1,11 @@
 # AI Traditional Chinese Medicine Expert
 
-## Epic 15 — Release Candidate 1
+## Epic 15 — Release Candidate 2
 
-- Khóa phiên bản `1.0.0 RC1`.
+- Khóa phiên bản `1.0.0 RC2`.
+- Luôn hiển thị lựa chọn khi thiếu dữ liệu.
+- Tự tải lại bệnh nhân khi mở trang đơn.
+- Thu gọn biểu mẫu Văn chẩn, Vấn chẩn.
 - Hoàn thiện toàn bộ chín mục điều hướng.
 - Bổ sung trang cài đặt và bảo trì.
 - Kiểm tra tính toàn vẹn cơ sở dữ liệu.
