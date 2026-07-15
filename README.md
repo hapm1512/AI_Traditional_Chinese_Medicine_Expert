@@ -1,6 +1,17 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 0.8.0
+## Phiên bản 1.0.0
+
+## Epic 10 — Formula Recommendation
+
+- Xác định pháp trị từ hồ sơ biện chứng.
+- Xếp hạng tối đa ba bài thuốc.
+- Hiển thị thành phần, công năng, chủ trị, nguồn.
+- Gợi ý huyệt vị để bác sĩ tham khảo.
+- Kiểm tra dị ứng, thai kỳ, gan, thận, độc tính.
+- Kiểm tra thuốc Tây và chống chỉ định.
+- Không tự động kê toa hoặc đặt liều.
+- Mọi kết quả bắt buộc bác sĩ phê duyệt.
 
 - Quản lý danh sách bệnh nhân.
 - Thêm, sửa, ẩn và tìm kiếm.

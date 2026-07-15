@@ -115,24 +115,30 @@ def seed_reference_data(connection: Connection) -> None:
             ),
         ),
     )
-    connection.execute(
+    connection.executemany(
         """INSERT OR IGNORE INTO formulas
         (code,name,name_cn,category,treatment_principle,indications,dosage_form,directions,
          modifications,contraindications,interactions,reference_source)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
-            "TQTH",
-            "Tứ Quân Tử Thang",
-            "四君子湯",
-            "Bổ khí",
-            "Ích khí kiện tỳ",
-            "Tỳ khí hư tham khảo",
-            "Thang",
-            "Bác sĩ quyết định liều và cách dùng",
-            "Gia giảm theo biện chứng",
-            "Không tự ý sử dụng",
-            "Kiểm tra tương tác trước sử dụng",
-            "Dữ liệu mẫu",
+            (
+                "TQTH", "Tứ Quân Tử Thang", "四君子湯", "Bổ khí", "Ích khí kiện tỳ",
+                "Tỳ khí hư tham khảo", "Thang", "Bác sĩ quyết định liều và cách dùng",
+                "Gia giảm theo biện chứng", "Không tự ý sử dụng",
+                "Kiểm tra tương tác trước sử dụng", "Dữ liệu mẫu",
+            ),
+            (
+                "QTT", "Quy Tỳ Thang", "歸脾湯", "Bổ ích", "Bổ ích Tâm Tỳ, dưỡng huyết an thần",
+                "Tâm Tỳ hư, mất ngủ tham khảo", "Thang",
+                "Bác sĩ quyết định liều và cách dùng", "Gia giảm theo biện chứng",
+                "Không tự ý sử dụng", "Kiểm tra tương tác trước sử dụng", "Dữ liệu mẫu",
+            ),
+            (
+                "TSD", "Tiêu Dao Tán", "逍遙散", "Hòa giải", "Sơ can kiện Tỳ, dưỡng huyết",
+                "Can khí uất tham khảo", "Tán", "Bác sĩ quyết định liều và cách dùng",
+                "Gia giảm theo biện chứng", "Không tự ý sử dụng",
+                "Kiểm tra tương tác trước sử dụng", "Dữ liệu mẫu",
+            ),
         ),
     )
     formula = connection.execute("SELECT id FROM formulas WHERE code='TQTH'").fetchone()

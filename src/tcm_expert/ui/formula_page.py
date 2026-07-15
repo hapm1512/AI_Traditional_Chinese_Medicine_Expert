@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from tcm_expert.database import ConsultationRepository, FormulaRepository, PatientRepository
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.services.formula_recommender import FormulaRecommender
 
 
 class FormulaPage(QWidget):
@@ -29,6 +30,7 @@ class FormulaPage(QWidget):
         self.formulas = FormulaRepository(database)
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
+        self.recommender = FormulaRecommender(database)
         self.current_formula_id: int | None = None
         self.recommendation_ids: list[int] = []
 
@@ -47,6 +49,7 @@ class FormulaPage(QWidget):
         tabs = QTabWidget()
         tabs.addTab(self._catalogue_tab(), "Tra cứu bài thuốc")
         tabs.addTab(self._recommendation_tab(), "Gắn vào hồ sơ khám")
+        tabs.addTab(self._ai_tab(), "Gợi ý thông minh")
         layout.addWidget(tabs, 1)
         self.refresh_catalogue()
         self.refresh_patients()
@@ -126,6 +129,33 @@ class FormulaPage(QWidget):
         layout.addWidget(self.recommendations, 1)
         return page
 
+    def _ai_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        selector = QHBoxLayout()
+        self.ai_patient = QComboBox()
+        self.ai_patient.currentIndexChanged.connect(self.refresh_ai_visits)
+        self.ai_visit = QComboBox()
+        run = QPushButton("Phân tích và xếp hạng")
+        run.clicked.connect(self.run_recommendation)
+        selector.addWidget(QLabel("Bệnh nhân"))
+        selector.addWidget(self.ai_patient, 1)
+        selector.addWidget(QLabel("Lần khám"))
+        selector.addWidget(self.ai_visit, 1)
+        selector.addWidget(run)
+        layout.addLayout(selector)
+        warning = QLabel(
+            "⚠ Không tự động kê toa hoặc đặt liều. Cảnh báo an toàn luôn hiển thị."
+        )
+        warning.setObjectName("warning")
+        warning.setWordWrap(True)
+        layout.addWidget(warning)
+        self.ai_result = QTextEdit()
+        self.ai_result.setReadOnly(True)
+        self.ai_result.setPlaceholderText("Chọn hồ sơ khám, sau đó nhấn phân tích.")
+        layout.addWidget(self.ai_result, 1)
+        return page
+
     def refresh_catalogue(self) -> None:
         rows = self.formulas.search(self.query.text(), str(self.category.currentData() or ""))
         self.table.setRowCount(len(rows))
@@ -173,11 +203,52 @@ class FormulaPage(QWidget):
     def refresh_patients(self) -> None:
         self.patient.blockSignals(True)
         self.patient.clear()
+        self.ai_patient.blockSignals(True)
+        self.ai_patient.clear()
         self.patient.addItem("Chọn bệnh nhân", None)
+        self.ai_patient.addItem("Chọn bệnh nhân", None)
         for row in self.patients.list():
             self.patient.addItem(f"{row['code']} — {row['full_name']}", row["id"])
+            self.ai_patient.addItem(f"{row['code']} — {row['full_name']}", row["id"])
         self.patient.blockSignals(False)
+        self.ai_patient.blockSignals(False)
         self.refresh_visits()
+        self.refresh_ai_visits()
+
+    def refresh_ai_visits(self) -> None:
+        self.ai_visit.clear()
+        patient_id = self.ai_patient.currentData()
+        if patient_id is not None:
+            for row in self.consultations.list_for_patient(int(patient_id)):
+                self.ai_visit.addItem(f"{row['visit_code']} — {row['created_at']}", row["id"])
+
+    def run_recommendation(self) -> None:
+        consultation_id = self.ai_visit.currentData()
+        if consultation_id is None:
+            QMessageBox.warning(self, "Thiếu dữ liệu", "Chọn bệnh nhân và lần khám.")
+            return
+        result = self.recommender.recommend(int(consultation_id))
+        lines = ["PHÁP TRỊ", *[f"• {x}" for x in result["principles"]], ""]
+        for rank, item in enumerate(result["recommendations"], 1):
+            detail = self.formulas.detail(int(item["id"]))
+            ingredients = ", ".join(x["herb_name"] for x in detail["ingredients"])
+            alerts = item["safety"] or [{"message": "Chưa ghi nhận cảnh báo."}]
+            lines.extend(
+                (
+                    f"#{rank} — {item['name']} — phù hợp {item['score']}%",
+                    f"Công năng/pháp trị: {item['treatment_principle']}",
+                    f"Chủ trị tham khảo: {item['indications']}",
+                    f"Thành phần gốc: {ingredients or 'Chưa có dữ liệu'}",
+                    f"Cơ sở xếp hạng: {', '.join(item['matched']) or 'dữ liệu tham chiếu'}",
+                    f"Huyệt tham khảo: {', '.join(item['acupoints']) or 'Bác sĩ quyết định'}",
+                    "Cảnh báo:",
+                    *[f"  • {alert['message']}" for alert in alerts],
+                    f"Nguồn: {item['reference_source']}",
+                    "",
+                )
+            )
+        lines.append(result["disclaimer"])
+        self.ai_result.setPlainText("\n".join(lines))
 
     def refresh_visits(self) -> None:
         self.visit.clear()
