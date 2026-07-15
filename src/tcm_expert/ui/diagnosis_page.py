@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
+    QCheckBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -18,8 +19,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from tcm_expert.database import ConsultationRepository, PatientRepository
+from tcm_expert.database import ConsultationRepository, PatientRepository, SyndromeRepository
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.services.syndrome_reasoner import suggest
 
 METHODS = (
     ("vong", "Vọng chẩn", "Sắc diện, hình thể, lưỡi..."),
@@ -502,12 +504,154 @@ class PalpationEditor(QWidget):
             self.refresh()
 
 
+class SyndromeEditor(QWidget):
+    def __init__(self, repository: SyndromeRepository):
+        super().__init__()
+        self.repository = repository
+        self.consultation_id: int | None = None
+        self.syndromes = repository.catalogue()
+        layout = QVBoxLayout(self)
+        warning = QLabel(
+            "Gợi ý biện chứng chỉ hỗ trợ tham khảo; bác sĩ chịu trách nhiệm xác nhận."
+        )
+        warning.setObjectName("warning")
+        warning.setWordWrap(True)
+        layout.addWidget(warning)
+        form = QFormLayout()
+        self.syndrome = QComboBox()
+        for item in self.syndromes:
+            self.syndrome.addItem(item["name"], item["id"])
+        self.syndrome.currentIndexChanged.connect(self.show_reference)
+        self.principles = QLabel()
+        self.principles.setWordWrap(True)
+        self.pathogenesis = QLabel()
+        self.pathogenesis.setWordWrap(True)
+        self.treatment = QLabel()
+        self.treatment.setWordWrap(True)
+        self.confidence = QSpinBox()
+        self.confidence.setRange(0, 100)
+        self.evidence = QTextEdit()
+        self.evidence.setMaximumHeight(72)
+        self.evidence.setPlaceholderText("Dấu hiệu Tứ chẩn hỗ trợ nhận định")
+        self.primary = QCheckBox("Chứng chính")
+        self.confirmed = QCheckBox("Bác sĩ đã xác nhận")
+        form.addRow("Hội chứng", self.syndrome)
+        form.addRow("Bát cương", self.principles)
+        form.addRow("Bệnh cơ", self.pathogenesis)
+        form.addRow("Phép trị", self.treatment)
+        form.addRow("Độ phù hợp", self.confidence)
+        form.addRow("Căn cứ", self.evidence)
+        checks = QHBoxLayout()
+        checks.addWidget(self.primary)
+        checks.addWidget(self.confirmed)
+        checks.addStretch()
+        form.addRow(checks)
+        layout.addLayout(form)
+        buttons = QHBoxLayout()
+        analyse = QPushButton("Gợi ý từ Tứ chẩn")
+        analyse.clicked.connect(self.analyse)
+        save = QPushButton("Lưu biện chứng")
+        save.clicked.connect(self.save)
+        remove = QPushButton("Xóa mục chọn")
+        remove.clicked.connect(self.remove)
+        buttons.addWidget(analyse)
+        buttons.addWidget(save)
+        buttons.addWidget(remove)
+        buttons.addStretch()
+        layout.addLayout(buttons)
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(
+            ("Hội chứng", "Bát cương", "Phép trị", "Phù hợp", "Chứng chính", "Xác nhận")
+        )
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.itemSelectionChanged.connect(self.load_selected)
+        layout.addWidget(self.table, 1)
+        self.show_reference()
+
+    def set_consultation(self, consultation_id: int | None) -> None:
+        self.consultation_id = consultation_id
+        self.setEnabled(consultation_id is not None)
+        self.refresh()
+
+    def show_reference(self) -> None:
+        index = self.syndrome.currentIndex()
+        if index < 0:
+            return
+        item = self.syndromes[index]
+        self.principles.setText(item["eight_principles"] or "—")
+        self.pathogenesis.setText(item["pathogenesis"] or "—")
+        self.treatment.setText(item["treatment_principle"] or "—")
+
+    def refresh(self) -> None:
+        rows = [] if self.consultation_id is None else self.repository.selected(self.consultation_id)
+        self.table.setRowCount(len(rows))
+        for row_index, entry in enumerate(rows):
+            values = (entry["name"], entry["eight_principles"], entry["treatment_principle"],
+                      f"{round(entry['confidence'] * 100)}%",
+                      "Có" if entry["is_primary"] else "", "Có" if entry["doctor_confirmed"] else "")
+            for column, value in enumerate(values):
+                cell = QTableWidgetItem(str(value))
+                cell.setData(Qt.ItemDataRole.UserRole, entry["syndrome_id"])
+                cell.setData(Qt.ItemDataRole.UserRole + 1, entry)
+                self.table.setItem(row_index, column, cell)
+
+    def analyse(self) -> None:
+        if self.consultation_id is None:
+            return
+        results = suggest(self.repository.clinical_text(self.consultation_id), self.syndromes)
+        if not results:
+            QMessageBox.information(self, "Chưa đủ căn cứ", "Chưa tìm thấy mẫu phù hợp rõ ràng.")
+            return
+        result = results[0]
+        self.syndrome.setCurrentIndex(self.syndrome.findData(result["id"]))
+        self.confidence.setValue(round(result["confidence"] * 100))
+        self.evidence.setPlainText("; ".join(result["matched"]))
+        QMessageBox.information(
+            self, "Gợi ý tham khảo", f"Gợi ý cao nhất: {result['name']}. Bác sĩ cần xác nhận."
+        )
+
+    def save(self) -> None:
+        if self.consultation_id is None or self.syndrome.currentData() is None:
+            return
+        try:
+            self.repository.save(self.consultation_id, int(self.syndrome.currentData()), {
+                "confidence": self.confidence.value() / 100,
+                "evidence": self.evidence.toPlainText(), "is_primary": self.primary.isChecked(),
+                "doctor_confirmed": self.confirmed.isChecked(),
+            })
+            self.refresh()
+        except Exception as error:
+            QMessageBox.warning(self, "Không thể lưu", str(error))
+
+    def load_selected(self) -> None:
+        items = self.table.selectedItems()
+        if not items:
+            return
+        entry = items[0].data(Qt.ItemDataRole.UserRole + 1)
+        self.syndrome.setCurrentIndex(self.syndrome.findData(entry["syndrome_id"]))
+        self.confidence.setValue(round(entry["confidence"] * 100))
+        self.evidence.setPlainText(entry["evidence"])
+        self.primary.setChecked(bool(entry["is_primary"]))
+        self.confirmed.setChecked(bool(entry["doctor_confirmed"]))
+
+    def remove(self) -> None:
+        items = self.table.selectedItems()
+        if self.consultation_id is not None and items:
+            self.repository.delete(
+                self.consultation_id, int(items[0].data(Qt.ItemDataRole.UserRole))
+            )
+            self.refresh()
+
+
 class DiagnosisPage(QWidget):
     def __init__(self, database: DatabaseManager):
         super().__init__()
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
-        self.editors: list[MethodEditor | ListeningSmellingEditor | InquiryEditor | PalpationEditor] = []
+        self.syndromes = SyndromeRepository(database)
+        self.editors: list[QWidget] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
         title = QLabel("Hồ sơ khám và Tứ chẩn")
@@ -557,6 +701,9 @@ class DiagnosisPage(QWidget):
             )
             self.editors.append(editor)
             tabs.addTab(editor, name)
+        syndrome_editor = SyndromeEditor(self.syndromes)
+        self.editors.append(syndrome_editor)
+        tabs.addTab(syndrome_editor, "Biện chứng luận trị")
         layout.addWidget(tabs, 1)
         self.reload_patients()
 

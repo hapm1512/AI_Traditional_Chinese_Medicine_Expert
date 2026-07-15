@@ -1,6 +1,6 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 0.7.0
+## Phiên bản 0.8.0
 
 - Quản lý danh sách bệnh nhân.
 - Thêm, sửa, ẩn và tìm kiếm.
@@ -11,6 +11,15 @@
 - Lưu nhận định sơ bộ và trạng thái duyệt.
 - Nhập liệu Văn chẩn thủ công chuẩn hóa.
 - Lưu người ghi nhận và thời gian.
+
+## Epic 8 — Biện chứng luận trị
+
+- Tổng hợp dữ liệu đầy đủ từ Tứ chẩn.
+- Gợi ý hội chứng bằng luật minh bạch.
+- Hiển thị Bát cương, bệnh cơ, phép trị.
+- Lưu độ phù hợp và căn cứ lâm sàng.
+- Chọn một chứng chính cho lần khám.
+- Bác sĩ xác nhận trước quyết định điều trị.
 
 ## Epic 7 — Thiết chẩn
 

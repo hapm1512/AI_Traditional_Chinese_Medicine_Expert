@@ -51,6 +51,14 @@ def seed_reference_data(connection: Connection) -> None:
                 "Sơ can lý khí",
                 "Mẫu tham khảo",
             ),
+            ("TAMTYHU", "Tâm Tỳ hư", "Lý - Hư", "Tâm huyết và Tỳ khí đều hư",
+             "Bổ ích Tâm Tỳ, dưỡng huyết an thần", "Mẫu tham khảo"),
+            ("THANAMHU", "Thận âm hư", "Lý - Hư - Nhiệt", "Thận âm hao tổn",
+             "Tư bổ Thận âm", "Mẫu tham khảo"),
+            ("PHẾKHIHU", "Phế khí hư", "Lý - Hư", "Phế khí bất túc",
+             "Bổ ích Phế khí", "Mẫu tham khảo"),
+            ("DAMTHAP", "Đàm thấp", "Lý - Thực", "Tỳ mất kiện vận, đàm thấp nội sinh",
+             "Kiện Tỳ hóa đàm, táo thấp", "Mẫu tham khảo"),
         ),
     )
     connection.executemany(

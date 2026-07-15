@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 0.6.0"))
+        layout.addWidget(QLabel("Phiên bản 0.8.0"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:

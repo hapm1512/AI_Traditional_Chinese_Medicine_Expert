@@ -7,6 +7,7 @@ from tcm_expert.database import (
     DatabaseManager,
     PatientRepository,
     ReferenceRepository,
+    SyndromeRepository,
     ValidationError,
 )
 from tcm_expert.database.schema import MIGRATIONS
@@ -289,3 +290,25 @@ def test_pulse_and_palpation_validation(database):
             "body_area": "Bụng", "finding_type": "invalid",
             "characteristic": "Đau", "recorded_by": "Bác sĩ An",
         })
+
+
+def test_differential_diagnosis_save_primary_and_confirmation(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN011", "full_name": "Kiểm thử biện chứng"}
+    )
+    consultation = ConsultationRepository(database).create(patient["id"], "K-2026-011")
+    repository = SyndromeRepository(database)
+    first, second = repository.catalogue()[:2]
+    repository.save(consultation["id"], first["id"], {
+        "confidence": 0.75, "evidence": "Mệt, ăn ít", "is_primary": True,
+        "doctor_confirmed": True,
+    })
+    repository.save(consultation["id"], second["id"], {
+        "confidence": 0.55, "evidence": "Tức ngực", "is_primary": True,
+    })
+    selected = repository.selected(consultation["id"])
+    assert len(selected) == 2
+    assert sum(item["is_primary"] for item in selected) == 1
+    assert selected[0]["syndrome_id"] == second["id"]
+    repository.delete(consultation["id"], second["id"])
+    assert len(repository.selected(consultation["id"])) == 1
