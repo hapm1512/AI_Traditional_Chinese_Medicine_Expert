@@ -2,6 +2,7 @@
 
 from tcm_expert.database.formula_repository import FormulaRepository
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.database.prescription_repository import PrescriptionRepository
 from tcm_expert.database.repositories import (
     ConsultationRepository,
     PatientRepository,
@@ -15,6 +16,7 @@ __all__ = [
     "DatabaseManager",
     "FormulaRepository",
     "PatientRepository",
+    "PrescriptionRepository",
     "ReferenceRepository",
     "SyndromeRepository",
     "ValidationError",

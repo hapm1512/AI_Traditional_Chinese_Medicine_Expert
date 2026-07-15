@@ -1,6 +1,18 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 1.0.0
+## Phiên bản 1.1.0
+
+## Epic 11 — Đơn thuốc bác sĩ
+
+- Chỉ tạo đơn từ bài thuốc đã phê duyệt.
+- Sao chép thành phần vào đơn độc lập.
+- Lưu chẩn đoán, pháp trị và cách dùng.
+- Lưu gia giảm và ghi chú an toàn.
+- Quản lý bản nháp và trạng thái duyệt.
+- Ghi tên bác sĩ và thời gian phê duyệt.
+- Hiển thị bản xem trước đơn thuốc.
+- Ghi audit khi tạo và phê duyệt.
+- Không cho AI tự động kê đơn.
 
 ## Epic 10 — Formula Recommendation
 

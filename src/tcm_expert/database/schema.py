@@ -349,4 +349,44 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_palpation_consultation ON palpation_findings(consultation_id);
         """,
     ),
+    (
+        6,
+        """
+        CREATE TABLE prescriptions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            recommendation_id INTEGER NOT NULL,
+            prescription_code TEXT NOT NULL UNIQUE,
+            diagnosis TEXT NOT NULL,
+            treatment_principle TEXT NOT NULL DEFAULT '',
+            directions TEXT NOT NULL,
+            modifications TEXT NOT NULL DEFAULT '',
+            safety_notes TEXT NOT NULL,
+            doctor_name TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft'
+                CHECK(status IN ('draft','approved','dispensed','cancelled')),
+            approved_at TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+            FOREIGN KEY(recommendation_id) REFERENCES formula_recommendations(id),
+            CHECK(status='draft' OR approved_at IS NOT NULL)
+        );
+        CREATE INDEX idx_prescriptions_consultation ON prescriptions(consultation_id);
+
+        CREATE TABLE prescription_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prescription_id INTEGER NOT NULL,
+            herb_id INTEGER NOT NULL,
+            role TEXT NOT NULL DEFAULT '',
+            dosage REAL NOT NULL CHECK(dosage > 0),
+            unit TEXT NOT NULL DEFAULT 'g',
+            preparation TEXT NOT NULL DEFAULT '',
+            note TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY(prescription_id) REFERENCES prescriptions(id) ON DELETE CASCADE,
+            FOREIGN KEY(herb_id) REFERENCES materia_medica(id),
+            UNIQUE(prescription_id, herb_id)
+        );
+        """,
+    ),
 )
