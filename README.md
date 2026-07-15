@@ -69,6 +69,16 @@ Phần mềm hỗ trợ nhân viên phòng khám Đông y. Mọi chẩn đoán, 
 - Chứng trạng, hội chứng và bệnh danh.
 - Tạng phủ, kinh lạc, khí huyết, âm dương.
 - Dược liệu, phương thuốc và thành phần.
+
+## Epic 9 — Bài thuốc tham khảo
+
+- Tra cứu theo tên, mã, nhóm, chỉ định, pháp trị.
+- Hiển thị thành phần, vai trò, liều tham chiếu.
+- Hiển thị chống chỉ định, tương tác và nguồn.
+- Gắn bài thuốc tham khảo vào lần khám.
+- Gia giảm và cách dùng do bác sĩ quyết định.
+- Phê duyệt bắt buộc có ghi chú an toàn.
+- Không tự động kê đơn hoặc thay thế bác sĩ.
 - Liều lượng, gia giảm và cách dùng.
 - Chống chỉ định và tương tác.
 - Repository CRUD và validation.

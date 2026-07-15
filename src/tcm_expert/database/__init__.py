@@ -1,5 +1,6 @@
 """SQLite persistence layer."""
 
+from tcm_expert.database.formula_repository import FormulaRepository
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.database.repositories import (
     ConsultationRepository,
@@ -12,6 +13,7 @@ from tcm_expert.database.validation import ValidationError
 __all__ = [
     "ConsultationRepository",
     "DatabaseManager",
+    "FormulaRepository",
     "PatientRepository",
     "ReferenceRepository",
     "SyndromeRepository",

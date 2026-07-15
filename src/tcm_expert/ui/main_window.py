@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
+from tcm_expert.ui.formula_page import FormulaPage
 from tcm_expert.ui.patient_page import PatientPage
 
 
@@ -35,6 +36,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(self._dashboard(clinic_name, database_counts or {}))
         self.pages.addWidget(PatientPage(database))
         self.pages.addWidget(DiagnosisPage(database))
+        self.pages.addWidget(FormulaPage(database))
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
@@ -48,25 +50,29 @@ class MainWindow(QMainWindow):
         logo.setObjectName("title")
         layout.addWidget(logo)
         layout.addSpacing(24)
-        for index, text in enumerate((
-            "Tổng quan",
-            "Quản lý bệnh nhân",
-            "Hỗ trợ chẩn đoán",
-            "Tra cứu dược liệu",
-            "Bài thuốc tham khảo",
-            "Cài đặt",
-        )):
+        for index, text in enumerate(
+            (
+                "Tổng quan",
+                "Quản lý bệnh nhân",
+                "Hỗ trợ chẩn đoán",
+                "Tra cứu dược liệu",
+                "Bài thuốc tham khảo",
+                "Cài đặt",
+            )
+        ):
             button = QPushButton(text)
-            button.setCheckable(index < 3)
-            if index < 3:
+            page_index = 3 if index == 4 else index
+            enabled = index < 3 or index == 4
+            button.setCheckable(enabled)
+            if enabled:
                 button.clicked.connect(
-                    lambda _checked=False, page=index: self.pages.setCurrentIndex(page)
+                    lambda _checked=False, page=page_index: self.pages.setCurrentIndex(page)
                 )
             if index == 0:
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 0.8.0"))
+        layout.addWidget(QLabel("Phiên bản 0.9.0"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:
@@ -80,9 +86,7 @@ class MainWindow(QMainWindow):
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
         layout.addSpacing(24)
-        warning = QLabel(
-            "⚠ Kết quả chỉ tham khảo. Bác sĩ phải phê duyệt điều trị."
-        )
+        warning = QLabel("⚠ Kết quả chỉ tham khảo. Bác sĩ phải phê duyệt điều trị.")
         warning.setObjectName("warning")
         warning.setWordWrap(True)
         layout.addWidget(warning)
