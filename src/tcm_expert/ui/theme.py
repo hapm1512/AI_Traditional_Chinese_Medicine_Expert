@@ -9,5 +9,13 @@ QMainWindow { background: #0c141b; }
 QPushButton { background: #1b3942; border: 1px solid #35606b;
               border-radius: 6px; padding: 10px; text-align: left; }
 QPushButton:hover { background: #26505a; }
+QPushButton:checked { background: #386b62; border-color: #e4c982; }
+QLineEdit, QComboBox, QDateEdit, QTextEdit { background: #0f1c23; border: 1px solid #35515c;
+              border-radius: 5px; padding: 7px; }
+QTableWidget { background: #13232c; alternate-background-color: #172b34;
+               border: 1px solid #29434d; gridline-color: #29434d; }
+QHeaderView::section { background: #1b3942; padding: 7px; border: 0; }
+QGroupBox { border: 1px solid #35515c; border-radius: 7px; margin-top: 12px; padding-top: 10px; }
+QGroupBox::title { color: #e4c982; subcontrol-origin: margin; left: 10px; padding: 0 5px; }
 QFrame#card { background: #172730; border: 1px solid #29434d; border-radius: 8px; }
 """

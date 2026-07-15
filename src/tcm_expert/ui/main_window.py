@@ -5,13 +5,22 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.ui.patient_page import PatientPage
+
 
 class MainWindow(QMainWindow):
-    def __init__(self, clinic_name: str, database_counts: dict[str, int] | None = None):
+    def __init__(
+        self,
+        clinic_name: str,
+        database: DatabaseManager,
+        database_counts: dict[str, int] | None = None,
+    ):
         super().__init__()
         self.setWindowTitle("AI Traditional Chinese Medicine Expert")
         self.resize(1180, 720)
@@ -21,8 +30,11 @@ class MainWindow(QMainWindow):
         layout = QHBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        self.pages = QStackedWidget()
+        self.pages.addWidget(self._dashboard(clinic_name, database_counts or {}))
+        self.pages.addWidget(PatientPage(database))
         layout.addWidget(self._sidebar())
-        layout.addWidget(self._dashboard(clinic_name, database_counts or {}), 1)
+        layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
 
     def _sidebar(self) -> QWidget:
@@ -34,17 +46,25 @@ class MainWindow(QMainWindow):
         logo.setObjectName("title")
         layout.addWidget(logo)
         layout.addSpacing(24)
-        for text in (
+        for index, text in enumerate((
             "Tổng quan",
-            "Tiếp nhận bệnh nhân",
+            "Quản lý bệnh nhân",
             "Hỗ trợ chẩn đoán",
             "Tra cứu dược liệu",
             "Bài thuốc tham khảo",
             "Cài đặt",
-        ):
-            layout.addWidget(QPushButton(text))
+        )):
+            button = QPushButton(text)
+            button.setCheckable(index < 2)
+            if index < 2:
+                button.clicked.connect(
+                    lambda _checked=False, page=index: self.pages.setCurrentIndex(page)
+                )
+            if index == 0:
+                button.setChecked(True)
+            layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 0.2.0"))
+        layout.addWidget(QLabel("Phiên bản 0.3.0"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:
@@ -58,14 +78,17 @@ class MainWindow(QMainWindow):
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
         layout.addSpacing(24)
-        warning = QLabel("⚠ Kết quả và bài thuốc chỉ tham khảo. Bác sĩ phải phê duyệt điều trị.")
+        warning = QLabel(
+            "⚠ Kết quả chỉ tham khảo. Bác sĩ phải phê duyệt điều trị."
+        )
         warning.setObjectName("warning")
         warning.setWordWrap(True)
         layout.addWidget(warning)
         layout.addSpacing(24)
         layout.addWidget(
             self._card(
-                "Nền tảng dữ liệu sẵn sàng", "SQLite đã kết nối • Dữ liệu bệnh nhân lưu cục bộ"
+                "Nền tảng dữ liệu sẵn sàng",
+                "SQLite đã kết nối • Dữ liệu bệnh nhân lưu cục bộ",
             )
         )
         summary = (

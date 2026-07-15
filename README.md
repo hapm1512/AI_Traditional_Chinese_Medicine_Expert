@@ -1,5 +1,12 @@
 # AI Traditional Chinese Medicine Expert
 
+## Phiên bản 0.3.0
+
+- Quản lý danh sách bệnh nhân.
+- Thêm, sửa, ẩn và tìm kiếm.
+- Quản lý lịch sử hồ sơ khám.
+- Kiểm tra dữ liệu và ghi audit.
+
 Phần mềm hỗ trợ nhân viên phòng khám Đông y. Mọi chẩn đoán, bài thuốc và quyết định điều trị phải được bác sĩ có chuyên môn kiểm tra, phê duyệt.
 
 ## Epic 2 — Database & Data Foundation

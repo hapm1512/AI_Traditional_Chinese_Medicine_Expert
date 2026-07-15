@@ -128,6 +128,33 @@ class ConsultationRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def update(self, consultation_id: int, values: Mapping[str, Any]) -> dict[str, Any]:
+        current = self.get(consultation_id)
+        data = self._validate({**current, **values})
+        assignments = ", ".join(f"{column} = ?" for column in data)
+        with self.database.transaction() as connection:
+            connection.execute(
+                f"UPDATE consultations SET {assignments}, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (*data.values(), consultation_id),
+            )
+            self.database.audit(connection, "update", "consultation", consultation_id)
+        return self.get(consultation_id)
+
+    def delete(self, consultation_id: int) -> None:
+        self.get(consultation_id)
+        with self.database.transaction() as connection:
+            connection.execute("DELETE FROM consultations WHERE id=?", (consultation_id,))
+            self.database.audit(connection, "delete", "consultation", consultation_id)
+
+    def diagnostic_entries(self, consultation_id: int) -> list[dict[str, Any]]:
+        self.get(consultation_id)
+        with self.database.transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM diagnostic_entries WHERE consultation_id=? ORDER BY id",
+                (consultation_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def add_diagnostic_entry(
         self,
         consultation_id: int,

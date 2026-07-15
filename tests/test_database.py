@@ -76,7 +76,12 @@ def test_migrates_epic_one_database(tmp_path):
 def test_patient_crud_and_audit(database):
     repository = PatientRepository(database)
     patient = repository.create(
-        {"code": "bn-001", "full_name": "Nguyễn Văn An", "birth_date": "1988-05-20", "sex": "male"}
+        {
+            "code": "bn-001",
+            "full_name": "Nguyễn Văn An",
+            "birth_date": "1988-05-20",
+            "sex": "male",
+        }
     )
     assert patient["code"] == "BN-001"
     updated = repository.update(patient["id"], {"phone": "0900000000"})
@@ -93,11 +98,15 @@ def test_patient_validation(database):
     with pytest.raises(ValidationError):
         repository.create({"code": "BN 01", "full_name": ""})
     with pytest.raises(ValidationError):
-        repository.create({"code": "BN01", "full_name": "An", "birth_date": "2999-01-01"})
+        repository.create(
+            {"code": "BN01", "full_name": "An", "birth_date": "2999-01-01"}
+        )
 
 
 def test_consultation_and_four_diagnostics(database):
-    patient = PatientRepository(database).create({"code": "BN002", "full_name": "Trần Thị Bình"})
+    patient = PatientRepository(database).create(
+        {"code": "BN002", "full_name": "Trần Thị Bình"}
+    )
     consultations = ConsultationRepository(database)
     visit = consultations.create(patient["id"], "K-2026-001", chief_complaint="Mệt mỏi")
     for method in ("vong", "van", "van_hoi", "thiet"):
@@ -111,6 +120,20 @@ def test_consultation_and_four_diagnostics(database):
             )
         }
     assert methods == {"vong", "van", "van_hoi", "thiet"}
+
+
+def test_consultation_update_delete_and_diagnostic_listing(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN003", "full_name": "Lê Văn Cường"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-002")
+    repository.add_diagnostic_entry(visit["id"], "vong", "Lưỡi", "Lưỡi nhạt")
+    assert repository.diagnostic_entries(visit["id"])[0]["finding"] == "Lưỡi nhạt"
+    updated = repository.update(visit["id"], {"status": "in_review"})
+    assert updated["status"] == "in_review"
+    repository.delete(visit["id"])
+    assert repository.list_for_patient(patient["id"]) == []
 
 
 def test_seed_reference_data_and_formula_disclaimer(database):

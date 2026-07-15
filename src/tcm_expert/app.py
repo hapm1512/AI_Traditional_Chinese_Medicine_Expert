@@ -25,7 +25,7 @@ def main() -> int:
         if not database.health_check():
             raise RuntimeError("Không thể kết nối cơ sở dữ liệu")
         app.setStyleSheet(DARK_THEME)
-        window = MainWindow(settings.clinic_name, database.reference_counts())
+        window = MainWindow(settings.clinic_name, database, database.reference_counts())
         window.show()
         return app.exec()
     except Exception as error:  # GUI boundary logs unexpected failures.
