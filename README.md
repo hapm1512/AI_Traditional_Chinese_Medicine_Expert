@@ -1,6 +1,6 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 0.5.0
+## Phiên bản 0.6.0
 
 - Quản lý danh sách bệnh nhân.
 - Thêm, sửa, ẩn và tìm kiếm.
@@ -11,6 +11,17 @@
 - Lưu nhận định sơ bộ và trạng thái duyệt.
 - Nhập liệu Văn chẩn thủ công chuẩn hóa.
 - Lưu người ghi nhận và thời gian.
+
+## Epic 6 — Vấn chẩn
+
+- Biểu mẫu Vấn chẩn theo Thập vấn.
+- Ghi hàn nhiệt, mồ hôi và đau.
+- Ghi ăn uống, khát và giấc ngủ.
+- Ghi đại tiện, tiểu tiện, tai mắt.
+- Ghi kinh đới và thai sản.
+- Ghi khởi phát và điều trị hiện tại.
+- Ghi riêng các dấu hiệu cảnh báo.
+- Lưu người hỏi và thời gian cập nhật.
 
 ## Epic 5 — Văn chẩn thủ công
 

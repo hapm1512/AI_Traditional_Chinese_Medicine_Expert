@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
@@ -259,12 +260,96 @@ class ListeningSmellingEditor(QWidget):
         self.refresh()
 
 
+class InquiryEditor(QWidget):
+    FIELDS = (
+        ("cold_heat", "Hàn nhiệt", "Sợ lạnh, phát sốt, nóng trong..."),
+        ("sweating", "Mồ hôi", "Có/không, tự hãn, đạo hãn..."),
+        ("head_body", "Đầu và thân", "Đau đầu, chóng mặt, đau mỏi..."),
+        ("chest_abdomen", "Ngực và bụng", "Tức ngực, hồi hộp, đau bụng..."),
+        ("appetite_taste", "Ăn uống, khẩu vị", "Ăn ít, đầy bụng, vị miệng..."),
+        ("thirst_drink", "Khát và uống", "Mức khát, thích nóng/lạnh..."),
+        ("sleep", "Giấc ngủ", "Khó ngủ, hay tỉnh, nhiều mộng..."),
+        ("stool", "Đại tiện", "Tần suất, táo/lỏng, màu sắc..."),
+        ("urination", "Tiểu tiện", "Tần suất, lượng, màu, đau buốt..."),
+        ("ears_eyes", "Tai và mắt", "Ù tai, nghe kém, hoa mắt..."),
+        ("gynecology", "Kinh, đới, thai sản", "Chu kỳ, lượng, màu, đau..."),
+        ("onset_progress", "Khởi phát, diễn tiến", "Bắt đầu, yếu tố tăng giảm..."),
+        ("current_treatment", "Điều trị hiện tại", "Thuốc đang dùng, đáp ứng..."),
+        ("red_flags", "Dấu hiệu cảnh báo", "Đau ngực, khó thở, ngất..."),
+        ("note", "Ghi chú khác", "Thông tin Vấn chẩn bổ sung"),
+    )
+
+    def __init__(self, repository: ConsultationRepository):
+        super().__init__()
+        self.repository = repository
+        self.consultation_id: int | None = None
+        outer = QVBoxLayout(self)
+        hint = QLabel("Nhập theo Thập vấn; bác sĩ xác minh trước quyết định điều trị.")
+        hint.setObjectName("subtitle")
+        outer.addWidget(hint)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        form = QFormLayout(content)
+        self.inputs: dict[str, QTextEdit] = {}
+        for key, label, placeholder in self.FIELDS:
+            field = QTextEdit()
+            field.setPlaceholderText(placeholder)
+            field.setMaximumHeight(54)
+            self.inputs[key] = field
+            form.addRow(label, field)
+        self.recorded_by = QLineEdit()
+        self.recorded_by.setPlaceholderText("Họ tên bác sĩ/y tá hỏi bệnh")
+        form.addRow("Người hỏi *", self.recorded_by)
+        scroll.setWidget(content)
+        outer.addWidget(scroll, 1)
+        buttons = QHBoxLayout()
+        save = QPushButton("Lưu Vấn chẩn")
+        save.clicked.connect(self.save)
+        clear = QPushButton("Xóa Vấn chẩn")
+        clear.clicked.connect(self.remove)
+        buttons.addWidget(save)
+        buttons.addWidget(clear)
+        buttons.addStretch()
+        outer.addLayout(buttons)
+
+    def set_consultation(self, consultation_id: int | None) -> None:
+        self.consultation_id = consultation_id
+        self.setEnabled(consultation_id is not None)
+        self.refresh()
+
+    def refresh(self) -> None:
+        item = None if self.consultation_id is None else (
+            self.repository.inquiry_finding(self.consultation_id)
+        )
+        for key, field in self.inputs.items():
+            field.setPlainText("" if item is None else item.get(key, ""))
+        self.recorded_by.setText("" if item is None else item.get("recorded_by", ""))
+
+    def save(self) -> None:
+        if self.consultation_id is None:
+            return
+        values = {key: field.toPlainText() for key, field in self.inputs.items()}
+        values["recorded_by"] = self.recorded_by.text()
+        try:
+            self.repository.save_inquiry_finding(self.consultation_id, values)
+            QMessageBox.information(self, "Đã lưu", "Vấn chẩn đã được cập nhật.")
+        except Exception as error:
+            QMessageBox.warning(self, "Không thể lưu", str(error))
+
+    def remove(self) -> None:
+        if self.consultation_id is None:
+            return
+        self.repository.delete_inquiry_finding(self.consultation_id)
+        self.refresh()
+
+
 class DiagnosisPage(QWidget):
     def __init__(self, database: DatabaseManager):
         super().__init__()
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
-        self.editors: list[MethodEditor | ListeningSmellingEditor] = []
+        self.editors: list[MethodEditor | ListeningSmellingEditor | InquiryEditor] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
         title = QLabel("Hồ sơ khám và Tứ chẩn")
@@ -306,6 +391,8 @@ class DiagnosisPage(QWidget):
             editor = (
                 ListeningSmellingEditor(self.consultations)
                 if method == "van"
+                else InquiryEditor(self.consultations)
+                if method == "van_hoi"
                 else MethodEditor(self.consultations, method, hint)
             )
             self.editors.append(editor)

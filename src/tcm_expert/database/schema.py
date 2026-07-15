@@ -280,4 +280,34 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
             ON listening_smelling_findings(finding_type);
         """,
     ),
+    (
+        4,
+        """
+        CREATE TABLE inquiry_findings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL UNIQUE,
+            cold_heat TEXT NOT NULL DEFAULT '',
+            sweating TEXT NOT NULL DEFAULT '',
+            head_body TEXT NOT NULL DEFAULT '',
+            chest_abdomen TEXT NOT NULL DEFAULT '',
+            appetite_taste TEXT NOT NULL DEFAULT '',
+            thirst_drink TEXT NOT NULL DEFAULT '',
+            sleep TEXT NOT NULL DEFAULT '',
+            stool TEXT NOT NULL DEFAULT '',
+            urination TEXT NOT NULL DEFAULT '',
+            ears_eyes TEXT NOT NULL DEFAULT '',
+            gynecology TEXT NOT NULL DEFAULT '',
+            onset_progress TEXT NOT NULL DEFAULT '',
+            current_treatment TEXT NOT NULL DEFAULT '',
+            red_flags TEXT NOT NULL DEFAULT '',
+            note TEXT NOT NULL DEFAULT '',
+            recorded_by TEXT NOT NULL,
+            recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_inquiry_consultation
+            ON inquiry_findings(consultation_id);
+        """,
+    ),
 )

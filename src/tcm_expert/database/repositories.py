@@ -263,6 +263,51 @@ class ConsultationRepository:
                 connection, "delete", "listening_smelling_finding", finding_id
             )
 
+    def inquiry_finding(self, consultation_id: int) -> dict[str, Any] | None:
+        self.get(consultation_id)
+        with self.database.transaction() as connection:
+            row = connection.execute(
+                "SELECT * FROM inquiry_findings WHERE consultation_id=?",
+                (consultation_id,),
+            ).fetchone()
+        return None if row is None else dict(row)
+
+    def save_inquiry_finding(
+        self, consultation_id: int, values: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        data = self._validate_inquiry(values)
+        self.get(consultation_id)
+        columns = ", ".join(data)
+        placeholders = ", ".join("?" for _ in data)
+        updates = ", ".join(f"{column}=excluded.{column}" for column in data)
+        with self.database.transaction() as connection:
+            connection.execute(
+                f"""INSERT INTO inquiry_findings
+                (consultation_id, {columns}) VALUES (?, {placeholders})
+                ON CONFLICT(consultation_id) DO UPDATE SET
+                {updates}, updated_at=CURRENT_TIMESTAMP""",
+                (consultation_id, *data.values()),
+            )
+            row = connection.execute(
+                "SELECT id FROM inquiry_findings WHERE consultation_id=?",
+                (consultation_id,),
+            ).fetchone()
+            self.database.audit(connection, "save", "inquiry_finding", row["id"])
+        return self.inquiry_finding(consultation_id) or {}
+
+    def delete_inquiry_finding(self, consultation_id: int) -> None:
+        with self.database.transaction() as connection:
+            row = connection.execute(
+                "SELECT id FROM inquiry_findings WHERE consultation_id=?",
+                (consultation_id,),
+            ).fetchone()
+            if row is None:
+                return
+            connection.execute(
+                "DELETE FROM inquiry_findings WHERE consultation_id=?", (consultation_id,)
+            )
+            self.database.audit(connection, "delete", "inquiry_finding", row["id"])
+
     @staticmethod
     def _validate_listening_smelling(values: Mapping[str, Any]) -> dict[str, Any]:
         finding_types = {
@@ -286,6 +331,20 @@ class ConsultationRepository:
             "note": optional_text(values.get("note"), 2000),
             "recorded_by": required_text(values.get("recorded_by"), "Người ghi nhận", 150),
         }
+
+    @staticmethod
+    def _validate_inquiry(values: Mapping[str, Any]) -> dict[str, Any]:
+        fields = (
+            "cold_heat", "sweating", "head_body", "chest_abdomen",
+            "appetite_taste", "thirst_drink", "sleep", "stool", "urination",
+            "ears_eyes", "gynecology", "onset_progress", "current_treatment",
+            "red_flags", "note",
+        )
+        data = {field: optional_text(values.get(field), 2000) for field in fields}
+        data["recorded_by"] = required_text(
+            values.get("recorded_by"), "Người hỏi", 150
+        )
+        return data
 
     @classmethod
     def _validate(cls, values: Mapping[str, Any]) -> dict[str, Any]:

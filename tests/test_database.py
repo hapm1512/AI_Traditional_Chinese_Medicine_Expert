@@ -33,6 +33,7 @@ EXPECTED_TABLES = {
     "formula_recommendations",
     "audit_log",
     "listening_smelling_findings",
+    "inquiry_findings",
 }
 
 
@@ -54,7 +55,7 @@ def test_database_initialization_is_idempotent(database):
         versions = [row[0] for row in connection.execute("SELECT version FROM schema_version")]
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
     assert EXPECTED_TABLES <= tables
-    assert versions == [1, 2, 3]
+    assert versions == [1, 2, 3, 4]
     assert integrity == "ok"
 
 
@@ -69,7 +70,7 @@ def test_migrates_epic_one_database(tmp_path):
 
     DatabaseManager(path).initialize()
     with sqlite3.connect(path) as migrated:
-        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 3
+        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 4
         columns = {row[1] for row in migrated.execute("PRAGMA table_info(patients)")}
     assert {"allergies", "deleted_at", "identity_number"} <= columns
 
@@ -205,3 +206,39 @@ def test_listening_smelling_validation(database):
             visit["id"],
             {"finding_type": "cough", "characteristic": "", "recorded_by": ""},
         )
+
+
+def test_structured_inquiry_upsert_and_delete(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN007", "full_name": "Bệnh nhân Vấn chẩn"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-007")
+    saved = repository.save_inquiry_finding(
+        visit["id"],
+        {
+            "cold_heat": "Sợ lạnh, không sốt",
+            "sleep": "Khó vào giấc",
+            "stool": "Đại tiện lỏng",
+            "recorded_by": "Y tá Lan",
+        },
+    )
+    assert saved["cold_heat"] == "Sợ lạnh, không sốt"
+    repository.save_inquiry_finding(
+        visit["id"], {"sleep": "Ngủ tốt hơn", "recorded_by": "Bác sĩ An"}
+    )
+    current = repository.inquiry_finding(visit["id"])
+    assert current["sleep"] == "Ngủ tốt hơn"
+    assert current["recorded_by"] == "Bác sĩ An"
+    repository.delete_inquiry_finding(visit["id"])
+    assert repository.inquiry_finding(visit["id"]) is None
+
+
+def test_inquiry_requires_recorder(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN008", "full_name": "Kiểm thử Vấn chẩn"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-008")
+    with pytest.raises(ValidationError):
+        repository.save_inquiry_finding(visit["id"], {"sleep": "Mất ngủ"})
