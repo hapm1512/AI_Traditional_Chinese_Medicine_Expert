@@ -40,6 +40,8 @@ EXPECTED_TABLES = {
     "prescriptions",
     "prescription_items",
     "tongue_analyses",
+    "audio_analyses",
+    "clinical_decision_reports",
 }
 
 
@@ -61,7 +63,7 @@ def test_database_initialization_is_idempotent(database):
         versions = [row[0] for row in connection.execute("SELECT version FROM schema_version")]
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
     assert EXPECTED_TABLES <= tables
-    assert versions == [1, 2, 3, 4, 5, 6, 7]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     assert integrity == "ok"
 
 
@@ -315,3 +317,9 @@ def test_differential_diagnosis_save_primary_and_confirmation(database):
     assert selected[0]["syndrome_id"] == second["id"]
     repository.delete(consultation["id"], second["id"])
     assert len(repository.selected(consultation["id"])) == 1
+def test_database_integrity_and_backup(database):
+    assert database.integrity_check() == "ok"
+    backup = database.create_backup(database.path.parent / "backup.db")
+    assert backup.exists()
+    with sqlite3.connect(backup) as connection:
+        assert connection.execute("PRAGMA integrity_check").fetchone()[0] == "ok"

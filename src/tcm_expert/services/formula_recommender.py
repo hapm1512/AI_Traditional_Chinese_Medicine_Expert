@@ -43,7 +43,8 @@ class FormulaRecommender:
         context = self._context(consultation_id)
         with self.database.transaction() as connection:
             formulas = connection.execute(
-                "SELECT * FROM formulas WHERE active=1 ORDER BY name"
+                """SELECT * FROM formulas WHERE active=1
+                   AND (source_type='system' OR doctor_approved=1) ORDER BY name"""
             ).fetchall()
         ranked: list[dict[str, Any]] = []
         for formula_row in formulas:

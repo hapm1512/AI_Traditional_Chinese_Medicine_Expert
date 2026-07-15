@@ -1,5 +1,39 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 15 — Release Candidate 1
+
+- Khóa phiên bản `1.0.0 RC1`.
+- Hoàn thiện toàn bộ chín mục điều hướng.
+- Bổ sung trang cài đặt và bảo trì.
+- Kiểm tra tính toàn vẹn cơ sở dữ liệu.
+- Sao lưu SQLite an toàn ngay trong ứng dụng.
+- Chuẩn hóa kiểm thử trước phát hành.
+- Loại bỏ tệp cache và metadata phát sinh.
+
+## Epic 14 — Clinical Decision Support
+
+- Tổng hợp Tứ chẩn theo từng lần khám.
+- Chấm độ đầy đủ và chỉ rõ dữ liệu thiếu.
+- Hiển thị chứng, căn cứ và độ tin cậy.
+- Tổng hợp pháp trị và bài thuốc tham khảo.
+- Kiểm tra dị ứng, tương tác và nguy cơ.
+- Cảnh báo dấu hiệu cần chuyển khám khẩn.
+- Lưu phiên bản báo cáo cùng audit log.
+- Bác sĩ bắt buộc phê duyệt kết quả.
+- Không tự chẩn đoán hoặc kê đơn.
+
+## Bài thuốc kinh nghiệm bác sĩ
+
+- Tách riêng nguồn hệ thống và bác sĩ.
+- Bác sĩ nhập thành phần bằng văn bản.
+- Lưu pháp trị, chủ trị và cách dùng.
+- Lưu gia giảm, chống chỉ định, tương tác.
+- Ghi tên bác sĩ và nguồn kinh nghiệm.
+- Cho phép sửa hoặc ẩn bài thuốc.
+- Chỉ đưa vào AI sau khi phê duyệt.
+
+Phiên bản 1.4 bổ sung hỗ trợ quyết định lâm sàng minh bạch.
+
 Phiên bản 1.3 bổ sung hỗ trợ phân tích offline WAV cho giọng nói, tiếng ho,
 tiếng thở; kiểm tra chất lượng, trích xuất đặc trưng, nhập tay và bác sĩ xác nhận.
 

@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -66,4 +67,26 @@ class DatabaseManager:
 
     def health_check(self) -> bool:
         with self.transaction() as connection:
-            return connection.execute("SELECT 1").fetchone()[0] == 1
+            query_ok = connection.execute("SELECT 1").fetchone()[0] == 1
+            return query_ok and self.integrity_check() == "ok"
+
+    def integrity_check(self) -> str:
+        with self.transaction() as connection:
+            return str(connection.execute("PRAGMA integrity_check").fetchone()[0])
+
+    def create_backup(self, destination: Path | None = None) -> Path:
+        if not self.path.exists():
+            raise FileNotFoundError("Chưa có cơ sở dữ liệu để sao lưu")
+        if destination is None:
+            backup_dir = self.path.parent / "backups"
+            stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            destination = backup_dir / f"tcm_expert_{stamp}.db"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        source = self.connect()
+        target = sqlite3.connect(destination)
+        try:
+            source.backup(target)
+        finally:
+            target.close()
+            source.close()
+        return destination

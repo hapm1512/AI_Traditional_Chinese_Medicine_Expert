@@ -48,6 +48,7 @@ class FormulaPage(QWidget):
 
         tabs = QTabWidget()
         tabs.addTab(self._catalogue_tab(), "Tra cứu bài thuốc")
+        tabs.addTab(self._doctor_formula_tab(), "Bài thuốc kinh nghiệm")
         tabs.addTab(self._recommendation_tab(), "Gắn vào hồ sơ khám")
         tabs.addTab(self._ai_tab(), "Gợi ý thông minh")
         layout.addWidget(tabs, 1)
@@ -72,8 +73,10 @@ class FormulaPage(QWidget):
         filters.addWidget(search)
         layout.addLayout(filters)
         splitter = QSplitter()
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(("Mã", "Tên bài thuốc", "Nhóm", "Vị"))
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels(
+            ("Mã", "Tên bài thuốc", "Nhóm", "Nguồn", "Vị")
+        )
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -84,6 +87,65 @@ class FormulaPage(QWidget):
         splitter.addWidget(self.detail)
         splitter.setSizes((480, 620))
         layout.addWidget(splitter, 1)
+        return page
+
+    def _doctor_formula_tab(self) -> QWidget:
+        page = QWidget()
+        layout = QHBoxLayout(page)
+        editor = QWidget()
+        form = QFormLayout(editor)
+        self.doctor_formula_id: int | None = None
+        self.df_code = QLineEdit()
+        self.df_name = QLineEdit()
+        self.df_category = QLineEdit()
+        self.df_doctor = QLineEdit()
+        self.df_principle = QLineEdit()
+        self.df_indications = QTextEdit()
+        self.df_ingredients = QTextEdit()
+        self.df_directions = QTextEdit()
+        self.df_modifications = QTextEdit()
+        self.df_contraindications = QTextEdit()
+        self.df_interactions = QTextEdit()
+        self.df_source = QLineEdit()
+        self.df_approved = QCheckBox("Bác sĩ xác nhận cho phép tham khảo")
+        for widget in (self.df_indications, self.df_ingredients, self.df_directions,
+                       self.df_modifications, self.df_contraindications, self.df_interactions):
+            widget.setMaximumHeight(70)
+        self.df_ingredients.setPlaceholderText(
+            "Mỗi vị một dòng: tên — lượng — cách chế biến"
+        )
+        form.addRow("Mã bài thuốc *", self.df_code)
+        form.addRow("Tên bài thuốc *", self.df_name)
+        form.addRow("Nhóm", self.df_category)
+        form.addRow("Bác sĩ tạo *", self.df_doctor)
+        form.addRow("Pháp trị", self.df_principle)
+        form.addRow("Chủ trị kinh nghiệm", self.df_indications)
+        form.addRow("Thành phần *", self.df_ingredients)
+        form.addRow("Cách dùng", self.df_directions)
+        form.addRow("Gia giảm", self.df_modifications)
+        form.addRow("Chống chỉ định", self.df_contraindications)
+        form.addRow("Tương tác/lưu ý", self.df_interactions)
+        form.addRow("Nguồn kinh nghiệm", self.df_source)
+        form.addRow("Phê duyệt", self.df_approved)
+        actions = QHBoxLayout()
+        new_button = QPushButton("Nhập mới")
+        new_button.clicked.connect(self.clear_doctor_formula)
+        save_button = QPushButton("Lưu bài thuốc")
+        save_button.clicked.connect(self.save_doctor_formula)
+        hide_button = QPushButton("Ẩn bài thuốc")
+        hide_button.clicked.connect(self.hide_doctor_formula)
+        actions.addWidget(new_button)
+        actions.addWidget(save_button)
+        actions.addWidget(hide_button)
+        form.addRow(actions)
+        layout.addWidget(editor, 1)
+        self.doctor_table = QTableWidget(0, 4)
+        self.doctor_table.setHorizontalHeaderLabels(("Mã", "Tên", "Bác sĩ", "Phê duyệt"))
+        self.doctor_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.doctor_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.doctor_table.horizontalHeader().setStretchLastSection(True)
+        self.doctor_table.itemSelectionChanged.connect(self.load_doctor_formula)
+        layout.addWidget(self.doctor_table, 1)
         return page
 
     def _recommendation_tab(self) -> QWidget:
@@ -160,7 +222,9 @@ class FormulaPage(QWidget):
         rows = self.formulas.search(self.query.text(), str(self.category.currentData() or ""))
         self.table.setRowCount(len(rows))
         for row_index, row in enumerate(rows):
-            values = (row["code"], row["name"], row["category"], row["ingredient_count"])
+            source = "Bác sĩ" if row["source_type"] == "doctor" else "Hệ thống"
+            count = row["ingredient_count"] if row["source_type"] == "system" else "Nhập tay"
+            values = (row["code"], row["name"], row["category"], source, count)
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setData(Qt.ItemDataRole.UserRole, row["id"])
@@ -169,6 +233,7 @@ class FormulaPage(QWidget):
             self.table.selectRow(0)
         else:
             self.detail.clear()
+        self.refresh_doctor_formulas()
 
     def show_selected(self) -> None:
         items = self.table.selectedItems()
@@ -176,7 +241,7 @@ class FormulaPage(QWidget):
             return
         self.current_formula_id = int(items[0].data(Qt.ItemDataRole.UserRole))
         formula = self.formulas.detail(self.current_formula_id)
-        ingredients = (
+        ingredients = formula.get("ingredients_text", "").strip() or (
             "\n".join(
                 f"• {x['herb_name']} ({x['herb_name_cn']}): "
                 f"{x['dosage']:g} {x['unit']} — {x['role']}"
@@ -199,6 +264,87 @@ class FormulaPage(QWidget):
             f"Nguồn: {formula['reference_source']}\n\n{formula['disclaimer']}"
         )
         self.chosen_formula.setText(formula["name"])
+
+    def refresh_doctor_formulas(self) -> None:
+        if not hasattr(self, "doctor_table"):
+            return
+        rows = [row for row in self.formulas.search() if row["source_type"] == "doctor"]
+        self.doctor_table.setRowCount(len(rows))
+        for index, row in enumerate(rows):
+            values = (row["code"], row["name"], row["created_by"],
+                      "Có" if row["doctor_approved"] else "Chưa")
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value))
+                item.setData(Qt.ItemDataRole.UserRole, row["id"])
+                self.doctor_table.setItem(index, column, item)
+
+    def load_doctor_formula(self) -> None:
+        items = self.doctor_table.selectedItems()
+        if not items:
+            return
+        self.doctor_formula_id = int(items[0].data(Qt.ItemDataRole.UserRole))
+        row = self.formulas.detail(self.doctor_formula_id)
+        self.df_code.setText(row["code"])
+        self.df_name.setText(row["name"])
+        self.df_category.setText(row["category"])
+        self.df_doctor.setText(row["created_by"])
+        self.df_principle.setText(row["treatment_principle"])
+        self.df_indications.setPlainText(row["indications"])
+        self.df_ingredients.setPlainText(row["ingredients_text"])
+        self.df_directions.setPlainText(row["directions"])
+        self.df_modifications.setPlainText(row["modifications"])
+        self.df_contraindications.setPlainText(row["contraindications"])
+        self.df_interactions.setPlainText(row["interactions"])
+        self.df_source.setText(row["reference_source"])
+        self.df_approved.setChecked(bool(row["doctor_approved"]))
+
+    def doctor_formula_values(self) -> dict[str, object]:
+        return {"code": self.df_code.text(), "name": self.df_name.text(),
+            "category": self.df_category.text(), "created_by": self.df_doctor.text(),
+            "treatment_principle": self.df_principle.text(),
+            "indications": self.df_indications.toPlainText(),
+            "ingredients_text": self.df_ingredients.toPlainText(),
+            "directions": self.df_directions.toPlainText(),
+            "modifications": self.df_modifications.toPlainText(),
+            "contraindications": self.df_contraindications.toPlainText(),
+            "interactions": self.df_interactions.toPlainText(),
+            "reference_source": self.df_source.text(),
+            "doctor_approved": self.df_approved.isChecked()}
+
+    def save_doctor_formula(self) -> None:
+        try:
+            if self.doctor_formula_id is None:
+                self.formulas.create_doctor_formula(self.doctor_formula_values())
+            else:
+                self.formulas.update_doctor_formula(
+                    self.doctor_formula_id, self.doctor_formula_values())
+        except Exception as error:
+            QMessageBox.warning(self, "Chưa thể lưu", str(error))
+            return
+        self.clear_doctor_formula()
+        self.refresh_catalogue()
+        QMessageBox.information(self, "Đã lưu", "Đã lưu bài thuốc kinh nghiệm.")
+
+    def hide_doctor_formula(self) -> None:
+        if self.doctor_formula_id is None:
+            return
+        try:
+            self.formulas.hide_doctor_formula(self.doctor_formula_id, self.df_doctor.text())
+        except ValueError as error:
+            QMessageBox.warning(self, "Chưa thể ẩn", str(error))
+            return
+        self.clear_doctor_formula()
+        self.refresh_catalogue()
+
+    def clear_doctor_formula(self) -> None:
+        self.doctor_formula_id = None
+        for widget in (self.df_code, self.df_name, self.df_category, self.df_doctor,
+                       self.df_principle, self.df_source):
+            widget.clear()
+        for widget in (self.df_indications, self.df_ingredients, self.df_directions,
+                       self.df_modifications, self.df_contraindications, self.df_interactions):
+            widget.clear()
+        self.df_approved.setChecked(False)
 
     def refresh_patients(self) -> None:
         self.patient.blockSignals(True)

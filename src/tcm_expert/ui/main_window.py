@@ -1,5 +1,6 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -10,12 +11,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from tcm_expert import __display_version__
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.ui.audio_page import AudioPage
+from tcm_expert.ui.clinical_support_page import ClinicalSupportPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
 from tcm_expert.ui.formula_page import FormulaPage
 from tcm_expert.ui.patient_page import PatientPage
 from tcm_expert.ui.prescription_page import PrescriptionPage
+from tcm_expert.ui.settings_page import SettingsPage
 from tcm_expert.ui.tongue_page import TonguePage
 
 
@@ -43,6 +47,8 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(AudioPage(database))
         self.pages.addWidget(FormulaPage(database))
         self.pages.addWidget(PrescriptionPage(database))
+        self.pages.addWidget(ClinicalSupportPage(database))
+        self.pages.addWidget(SettingsPage(database))
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
@@ -56,6 +62,8 @@ class MainWindow(QMainWindow):
         logo.setObjectName("title")
         layout.addWidget(logo)
         layout.addSpacing(24)
+        self.menu_group = QButtonGroup(self)
+        self.menu_group.setExclusive(True)
         for index, text in enumerate(
             (
                 "Tổng quan",
@@ -65,22 +73,22 @@ class MainWindow(QMainWindow):
                 "AI phân tích âm thanh",
                 "Bài thuốc tham khảo",
                 "Đơn thuốc bác sĩ",
+                "Hỗ trợ quyết định",
                 "Cài đặt",
             )
         ):
             button = QPushButton(text)
             page_index = index
-            enabled = index < 7
-            button.setCheckable(enabled)
-            if enabled:
-                button.clicked.connect(
-                    lambda _checked=False, page=page_index: self.pages.setCurrentIndex(page)
-                )
+            button.setCheckable(True)
+            self.menu_group.addButton(button, index)
+            button.clicked.connect(
+                lambda _checked=False, page=page_index: self.pages.setCurrentIndex(page)
+            )
             if index == 0:
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 1.3.0"))
+        layout.addWidget(QLabel(f"Phiên bản {__display_version__}"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:

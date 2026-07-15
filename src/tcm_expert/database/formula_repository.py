@@ -29,6 +29,73 @@ class FormulaRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def create_doctor_formula(self, values: Mapping[str, Any]) -> int:
+        data = self._doctor_values(values)
+        with self.database.transaction() as connection:
+            cursor = connection.execute(
+                """INSERT INTO formulas
+                   (code,name,category,treatment_principle,indications,dosage_form,
+                    directions,modifications,contraindications,interactions,
+                    reference_source,disclaimer,source_type,created_by,
+                    doctor_approved,ingredients_text)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?,?, 'doctor',?,?,?)""",
+                data,
+            )
+            formula_id = int(cursor.lastrowid)
+            self.database.audit(connection, "create", "doctor_formula", formula_id, data[-3])
+            return formula_id
+
+    def update_doctor_formula(self, formula_id: int, values: Mapping[str, Any]) -> None:
+        data = self._doctor_values(values)
+        with self.database.transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE formulas SET code=?,name=?,category=?,treatment_principle=?,
+                   indications=?,dosage_form=?,directions=?,modifications=?,
+                   contraindications=?,interactions=?,reference_source=?,disclaimer=?,
+                   created_by=?,doctor_approved=?,ingredients_text=?
+                   WHERE id=? AND source_type='doctor' AND active=1""",
+                (*data[:12], *data[12:], formula_id),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Không tìm thấy bài thuốc kinh nghiệm.")
+            self.database.audit(connection, "update", "doctor_formula", formula_id, data[-3])
+
+    def hide_doctor_formula(self, formula_id: int, doctor_name: str) -> None:
+        doctor_name = optional_text(doctor_name, 200)
+        if not doctor_name:
+            raise ValueError("Cần nhập tên bác sĩ.")
+        with self.database.transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE formulas SET active=0 WHERE id=? AND source_type='doctor'""",
+                (formula_id,),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError("Chỉ được ẩn bài thuốc do bác sĩ nhập.")
+            self.database.audit(connection, "hide", "doctor_formula", formula_id, doctor_name)
+
+    @staticmethod
+    def _doctor_values(values: Mapping[str, Any]) -> tuple[Any, ...]:
+        code = optional_text(values.get("code"), 50)
+        name = optional_text(values.get("name"), 200)
+        doctor = optional_text(values.get("created_by"), 200)
+        ingredients = optional_text(values.get("ingredients_text"), 5000)
+        if not all((code, name, doctor, ingredients)):
+            raise ValueError("Cần nhập mã, tên, bác sĩ và thành phần.")
+        return (
+            code, name, optional_text(values.get("category"), 200),
+            optional_text(values.get("treatment_principle"), 2000),
+            optional_text(values.get("indications"), 3000),
+            optional_text(values.get("dosage_form"), 200),
+            optional_text(values.get("directions"), 2000),
+            optional_text(values.get("modifications"), 3000),
+            optional_text(values.get("contraindications"), 3000),
+            optional_text(values.get("interactions"), 3000),
+            optional_text(values.get("reference_source"), 1000),
+            "Bài thuốc kinh nghiệm chỉ dùng khi bác sĩ "
+            "chịu trách nhiệm phê duyệt.",
+            doctor, int(bool(values.get("doctor_approved", False))), ingredients,
+        )
+
     def categories(self) -> list[str]:
         with self.database.transaction() as connection:
             rows = connection.execute(

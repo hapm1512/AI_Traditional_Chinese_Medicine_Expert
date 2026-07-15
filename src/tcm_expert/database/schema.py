@@ -459,4 +459,35 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_audio_analysis_sha256 ON audio_analyses(audio_sha256);
         """,
     ),
+    (
+        9,
+        """
+        CREATE TABLE clinical_decision_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            completeness_score REAL NOT NULL CHECK(completeness_score BETWEEN 0 AND 1),
+            risk_level TEXT NOT NULL CHECK(risk_level IN ('low','moderate','high')),
+            report_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft','reviewed')),
+            reviewed_by TEXT NOT NULL DEFAULT '',
+            reviewed_at TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_clinical_report_consultation
+            ON clinical_decision_reports(consultation_id, created_at DESC);
+        """,
+    ),
+    (
+        10,
+        """
+        ALTER TABLE formulas ADD COLUMN source_type TEXT NOT NULL DEFAULT 'system'
+            CHECK(source_type IN ('system','doctor'));
+        ALTER TABLE formulas ADD COLUMN created_by TEXT NOT NULL DEFAULT '';
+        ALTER TABLE formulas ADD COLUMN doctor_approved INTEGER NOT NULL DEFAULT 1
+            CHECK(doctor_approved IN (0,1));
+        ALTER TABLE formulas ADD COLUMN ingredients_text TEXT NOT NULL DEFAULT '';
+        CREATE INDEX idx_formulas_source ON formulas(source_type,created_by,active);
+        """,
+    ),
 )
