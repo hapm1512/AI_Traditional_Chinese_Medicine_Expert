@@ -1,5 +1,8 @@
 # AI Traditional Chinese Medicine Expert
 
+Phiên bản 1.3 bổ sung hỗ trợ phân tích offline WAV cho giọng nói, tiếng ho,
+tiếng thở; kiểm tra chất lượng, trích xuất đặc trưng, nhập tay và bác sĩ xác nhận.
+
 ## Epic 12 — Tongue Vision AI
 
 - Nhập ảnh lưỡi từ tệp cục bộ.

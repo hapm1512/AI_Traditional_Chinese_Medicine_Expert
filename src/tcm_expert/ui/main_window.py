@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.ui.audio_page import AudioPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
 from tcm_expert.ui.formula_page import FormulaPage
 from tcm_expert.ui.patient_page import PatientPage
@@ -39,6 +40,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(PatientPage(database))
         self.pages.addWidget(DiagnosisPage(database))
         self.pages.addWidget(TonguePage(database))
+        self.pages.addWidget(AudioPage(database))
         self.pages.addWidget(FormulaPage(database))
         self.pages.addWidget(PrescriptionPage(database))
         layout.addWidget(self._sidebar())
@@ -60,6 +62,7 @@ class MainWindow(QMainWindow):
                 "Quản lý bệnh nhân",
                 "Hỗ trợ chẩn đoán",
                 "AI phân tích lưỡi",
+                "AI phân tích âm thanh",
                 "Bài thuốc tham khảo",
                 "Đơn thuốc bác sĩ",
                 "Cài đặt",
@@ -67,7 +70,7 @@ class MainWindow(QMainWindow):
         ):
             button = QPushButton(text)
             page_index = index
-            enabled = index < 6
+            enabled = index < 7
             button.setCheckable(enabled)
             if enabled:
                 button.clicked.connect(
@@ -77,7 +80,7 @@ class MainWindow(QMainWindow):
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 1.2.0"))
+        layout.addWidget(QLabel("Phiên bản 1.3.0"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:

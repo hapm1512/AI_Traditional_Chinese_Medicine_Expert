@@ -424,4 +424,39 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_tongue_analysis_sha256 ON tongue_analyses(image_sha256);
         """,
     ),
+    (
+        8,
+        """
+        CREATE TABLE audio_analyses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            sample_type TEXT NOT NULL CHECK(sample_type IN ('voice','cough','breathing','other')),
+            source_mode TEXT NOT NULL DEFAULT 'file' CHECK(source_mode IN ('file','manual')),
+            original_audio_path TEXT NOT NULL DEFAULT '',
+            audio_sha256 TEXT NOT NULL DEFAULT '',
+            duration_seconds REAL NOT NULL DEFAULT 0 CHECK(duration_seconds >= 0),
+            sample_rate INTEGER NOT NULL DEFAULT 0 CHECK(sample_rate >= 0),
+            channels INTEGER NOT NULL DEFAULT 0 CHECK(channels >= 0),
+            quality_score REAL NOT NULL DEFAULT 0 CHECK(quality_score BETWEEN 0 AND 1),
+            quality_issues TEXT NOT NULL DEFAULT '',
+            rms_level REAL NOT NULL DEFAULT 0,
+            peak_level REAL NOT NULL DEFAULT 0,
+            zero_crossing_rate REAL NOT NULL DEFAULT 0,
+            dominant_frequency REAL NOT NULL DEFAULT 0,
+            pattern_label TEXT NOT NULL DEFAULT '',
+            ai_confidence REAL NOT NULL DEFAULT 0 CHECK(ai_confidence BETWEEN 0 AND 1),
+            ai_detail TEXT NOT NULL DEFAULT '{}',
+            manual_characteristic TEXT NOT NULL DEFAULT '',
+            doctor_pattern_label TEXT NOT NULL DEFAULT '',
+            doctor_note TEXT NOT NULL DEFAULT '',
+            reviewed_by TEXT NOT NULL DEFAULT '',
+            reviewed_at TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_audio_analysis_consultation
+            ON audio_analyses(consultation_id, created_at DESC);
+        CREATE INDEX idx_audio_analysis_sha256 ON audio_analyses(audio_sha256);
+        """,
+    ),
 )
