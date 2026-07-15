@@ -136,6 +136,25 @@ def test_consultation_update_delete_and_diagnostic_listing(database):
     assert repository.list_for_patient(patient["id"]) == []
 
 
+def test_diagnostic_update_delete_and_assessment(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN004", "full_name": "Phạm Thị Dung"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-004")
+    entry_id = repository.add_diagnostic_entry(
+        visit["id"], "thiet", "Mạch", "Mạch trầm", 4
+    )
+    repository.update_diagnostic_entry(
+        entry_id, "thiet", "Mạch", "Mạch trầm tế", 6, "Tay trái"
+    )
+    assert repository.diagnostic_entries(visit["id"])[0]["severity"] == 6
+    updated = repository.update(visit["id"], {"assessment": "Khí huyết hư"})
+    assert updated["assessment"] == "Khí huyết hư"
+    repository.delete_diagnostic_entry(entry_id)
+    assert repository.diagnostic_entries(visit["id"]) == []
+
+
 def test_seed_reference_data_and_formula_disclaimer(database):
     references = ReferenceRepository(database)
     assert len(references.list("materia_medica")) >= 2

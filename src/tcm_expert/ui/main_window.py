@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.ui.patient_page import PatientPage
+from tcm_expert.ui.diagnosis_page import DiagnosisPage
 
 
 class MainWindow(QMainWindow):
@@ -33,6 +34,7 @@ class MainWindow(QMainWindow):
         self.pages = QStackedWidget()
         self.pages.addWidget(self._dashboard(clinic_name, database_counts or {}))
         self.pages.addWidget(PatientPage(database))
+        self.pages.addWidget(DiagnosisPage(database))
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
@@ -55,8 +57,8 @@ class MainWindow(QMainWindow):
             "Cài đặt",
         )):
             button = QPushButton(text)
-            button.setCheckable(index < 2)
-            if index < 2:
+            button.setCheckable(index < 3)
+            if index < 3:
                 button.clicked.connect(
                     lambda _checked=False, page=index: self.pages.setCurrentIndex(page)
                 )
@@ -64,7 +66,7 @@ class MainWindow(QMainWindow):
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 0.3.0"))
+        layout.addWidget(QLabel("Phiên bản 0.4.0"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:

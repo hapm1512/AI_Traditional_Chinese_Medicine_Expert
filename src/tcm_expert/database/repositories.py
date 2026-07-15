@@ -185,6 +185,43 @@ class ConsultationRepository:
             self.database.audit(connection, "create", "diagnostic_entry", cursor.lastrowid)
             return int(cursor.lastrowid)
 
+    def update_diagnostic_entry(
+        self,
+        entry_id: int,
+        method: str,
+        category: str,
+        finding: str,
+        severity: int | None = None,
+        note: str = "",
+    ) -> None:
+        choice(method, "Phương pháp tứ chẩn", {"vong", "van", "van_hoi", "thiet"})
+        if severity is not None and not 0 <= int(severity) <= 10:
+            raise ValueError("Mức độ phải từ 0 đến 10")
+        with self.database.transaction() as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM diagnostic_entries WHERE id=?", (entry_id,)
+            ).fetchone()
+            if not exists:
+                raise LookupError("Không tìm thấy kết quả tứ chẩn")
+            connection.execute(
+                """UPDATE diagnostic_entries
+                SET method=?, category=?, finding=?, severity=?, note=? WHERE id=?""",
+                (method, required_text(category, "Nhóm tứ chẩn", 100),
+                 required_text(finding, "Kết quả tứ chẩn", 2000), severity,
+                 optional_text(note, 2000), entry_id),
+            )
+            self.database.audit(connection, "update", "diagnostic_entry", entry_id)
+
+    def delete_diagnostic_entry(self, entry_id: int) -> None:
+        with self.database.transaction() as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM diagnostic_entries WHERE id=?", (entry_id,)
+            ).fetchone()
+            if not exists:
+                raise LookupError("Không tìm thấy kết quả tứ chẩn")
+            connection.execute("DELETE FROM diagnostic_entries WHERE id=?", (entry_id,))
+            self.database.audit(connection, "delete", "diagnostic_entry", entry_id)
+
     @classmethod
     def _validate(cls, values: Mapping[str, Any]) -> dict[str, Any]:
         return {
@@ -194,6 +231,11 @@ class ConsultationRepository:
             "symptoms": optional_text(values.get("symptoms"), 5000),
             "western_history": optional_text(values.get("western_history"), 5000),
             "doctor_name": optional_text(values.get("doctor_name"), 150),
+            "observation": optional_text(values.get("observation"), 5000),
+            "listening_smelling": optional_text(values.get("listening_smelling"), 5000),
+            "inquiry": optional_text(values.get("inquiry"), 5000),
+            "palpation": optional_text(values.get("palpation"), 5000),
+            "assessment": optional_text(values.get("assessment"), 5000),
         }
 
 

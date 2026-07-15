@@ -1,11 +1,22 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 0.3.0
+## Phiên bản 0.4.0
 
 - Quản lý danh sách bệnh nhân.
 - Thêm, sửa, ẩn và tìm kiếm.
 - Quản lý lịch sử hồ sơ khám.
 - Kiểm tra dữ liệu và ghi audit.
+- Nhập liệu Vọng, Văn, Vấn, Thiết.
+- Phân loại và chấm mức độ phát hiện.
+- Lưu nhận định sơ bộ và trạng thái duyệt.
+
+## Epic 4 — Hồ sơ khám và Tứ chẩn
+
+- Chọn bệnh nhân và lần khám.
+- Ghi nhận bốn phương pháp Tứ chẩn.
+- Thêm, xem và xóa từng phát hiện.
+- Cập nhật tiền sử, nhận định, bác sĩ.
+- Quy trình bản nháp, duyệt và đóng.
 
 Phần mềm hỗ trợ nhân viên phòng khám Đông y. Mọi chẩn đoán, bài thuốc và quyết định điều trị phải được bác sĩ có chuyên môn kiểm tra, phê duyệt.
 
