@@ -206,9 +206,14 @@ class ConsultationRepository:
             connection.execute(
                 """UPDATE diagnostic_entries
                 SET method=?, category=?, finding=?, severity=?, note=? WHERE id=?""",
-                (method, required_text(category, "Nhóm tứ chẩn", 100),
-                 required_text(finding, "Kết quả tứ chẩn", 2000), severity,
-                 optional_text(note, 2000), entry_id),
+                (
+                    method,
+                    required_text(category, "Nhóm tứ chẩn", 100),
+                    required_text(finding, "Kết quả tứ chẩn", 2000),
+                    severity,
+                    optional_text(note, 2000),
+                    entry_id,
+                ),
             )
             self.database.audit(connection, "update", "diagnostic_entry", entry_id)
 
@@ -256,12 +261,8 @@ class ConsultationRepository:
             ).fetchone()
             if not exists:
                 raise LookupError("Không tìm thấy kết quả Văn chẩn")
-            connection.execute(
-                "DELETE FROM listening_smelling_findings WHERE id=?", (finding_id,)
-            )
-            self.database.audit(
-                connection, "delete", "listening_smelling_finding", finding_id
-            )
+            connection.execute("DELETE FROM listening_smelling_findings WHERE id=?", (finding_id,))
+            self.database.audit(connection, "delete", "listening_smelling_finding", finding_id)
 
     def inquiry_finding(self, consultation_id: int) -> dict[str, Any] | None:
         self.get(consultation_id)
@@ -318,9 +319,7 @@ class ConsultationRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def save_pulse_finding(
-        self, consultation_id: int, values: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def save_pulse_finding(self, consultation_id: int, values: Mapping[str, Any]) -> dict[str, Any]:
         data = self._validate_pulse(values)
         self.get(consultation_id)
         columns = ", ".join(data)
@@ -340,14 +339,17 @@ class ConsultationRepository:
             ).fetchone()
             self.database.audit(connection, "save", "pulse_finding", row["id"])
         return next(
-            row for row in self.pulse_findings(consultation_id)
+            row
+            for row in self.pulse_findings(consultation_id)
             if row["side"] == data["side"] and row["position"] == data["position"]
         )
 
     def delete_pulse_findings(self, consultation_id: int) -> None:
         self.get(consultation_id)
         with self.database.transaction() as connection:
-            connection.execute("DELETE FROM pulse_findings WHERE consultation_id=?", (consultation_id,))
+            connection.execute(
+                "DELETE FROM pulse_findings WHERE consultation_id=?", (consultation_id,)
+            )
             self.database.audit(connection, "delete", "pulse_findings", consultation_id)
 
     def palpation_findings(self, consultation_id: int) -> list[dict[str, Any]]:
@@ -385,19 +387,21 @@ class ConsultationRepository:
     @staticmethod
     def _validate_listening_smelling(values: Mapping[str, Any]) -> dict[str, Any]:
         finding_types = {
-            "voice", "breathing", "cough", "sputum", "hiccup",
-            "pathological_sound", "odor", "other",
+            "voice",
+            "breathing",
+            "cough",
+            "sputum",
+            "hiccup",
+            "pathological_sound",
+            "odor",
+            "other",
         }
         severity = int(values.get("severity") or 0)
         if not 0 <= severity <= 10:
             raise ValueError("Mức độ phải từ 0 đến 10")
         return {
-            "finding_type": choice(
-                values.get("finding_type"), "Loại Văn chẩn", finding_types
-            ),
-            "characteristic": required_text(
-                values.get("characteristic"), "Đặc điểm", 500
-            ),
+            "finding_type": choice(values.get("finding_type"), "Loại Văn chẩn", finding_types),
+            "characteristic": required_text(values.get("characteristic"), "Đặc điểm", 500),
             "frequency": optional_text(values.get("frequency"), 100),
             "severity": severity,
             "duration": optional_text(values.get("duration"), 100),
@@ -409,15 +413,24 @@ class ConsultationRepository:
     @staticmethod
     def _validate_inquiry(values: Mapping[str, Any]) -> dict[str, Any]:
         fields = (
-            "cold_heat", "sweating", "head_body", "chest_abdomen",
-            "appetite_taste", "thirst_drink", "sleep", "stool", "urination",
-            "ears_eyes", "gynecology", "onset_progress", "current_treatment",
-            "red_flags", "note",
+            "cold_heat",
+            "sweating",
+            "head_body",
+            "chest_abdomen",
+            "appetite_taste",
+            "thirst_drink",
+            "sleep",
+            "stool",
+            "urination",
+            "ears_eyes",
+            "gynecology",
+            "onset_progress",
+            "current_treatment",
+            "red_flags",
+            "note",
         )
         data = {field: optional_text(values.get(field), 2000) for field in fields}
-        data["recorded_by"] = required_text(
-            values.get("recorded_by"), "Người hỏi", 150
-        )
+        data["recorded_by"] = required_text(values.get("recorded_by"), "Người hỏi", 150)
         return data
 
     @staticmethod
@@ -447,7 +460,8 @@ class ConsultationRepository:
         return {
             "body_area": required_text(values.get("body_area"), "Vùng sờ nắn", 200),
             "finding_type": choice(
-                values.get("finding_type"), "Loại xúc chẩn",
+                values.get("finding_type"),
+                "Loại xúc chẩn",
                 {"temperature", "tenderness", "mass", "skin", "abdomen", "acupoint", "other"},
             ),
             "characteristic": required_text(values.get("characteristic"), "Đặc điểm", 1000),

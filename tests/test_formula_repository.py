@@ -41,9 +41,7 @@ def test_recommendation_requires_safety_note_for_approval(
     formula = repository.search()[0]
 
     with pytest.raises(ValueError, match="ghi chú an toàn"):
-        repository.save_recommendation(
-            consultation["id"], formula["id"], {"doctor_approved": True}
-        )
+        repository.save_recommendation(consultation["id"], formula["id"], {"doctor_approved": True})
 
     recommendation_id = repository.save_recommendation(
         consultation["id"],

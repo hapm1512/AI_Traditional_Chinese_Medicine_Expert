@@ -8,6 +8,7 @@ class AppPaths:
     root: Path
     data: Path
     logs: Path
+    backups: Path
     database: Path
     settings: Path
 
@@ -20,6 +21,7 @@ class AppPaths:
             root=root,
             data=root / "data",
             logs=root / "logs",
+            backups=root / "backups",
             database=root / "data" / "tcm_expert.db",
             settings=root / "settings.json",
         )
@@ -27,3 +29,4 @@ class AppPaths:
     def ensure(self) -> None:
         self.data.mkdir(parents=True, exist_ok=True)
         self.logs.mkdir(parents=True, exist_ok=True)
+        self.backups.mkdir(parents=True, exist_ok=True)

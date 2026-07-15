@@ -5,9 +5,19 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
-    QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QTextEdit,
-    QVBoxLayout, QWidget,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from tcm_expert.database.audio_repository import AudioAnalysisRepository
@@ -16,8 +26,12 @@ from tcm_expert.services.audio_analyzer import AudioAnalyzer
 
 
 class AudioPage(QWidget):
-    TYPES = (("Giọng nói", "voice"), ("Tiếng ho", "cough"),
-             ("Tiếng thở", "breathing"), ("Khác", "other"))
+    TYPES = (
+        ("Giọng nói", "voice"),
+        ("Tiếng ho", "cough"),
+        ("Tiếng thở", "breathing"),
+        ("Khác", "other"),
+    )
 
     def __init__(self, database: DatabaseManager):
         super().__init__()
@@ -133,7 +147,8 @@ class AudioPage(QWidget):
             if not stored.exists():
                 shutil.copy2(self.source_path, stored)
             self.analysis_id = self.repository.create(
-                consultation_id, self.sample_type.currentData(), str(stored), result.as_dict())
+                consultation_id, self.sample_type.currentData(), str(stored), result.as_dict()
+            )
             self._apply_result(result.as_dict())
             self.refresh_history()
         except (OSError, ValueError) as error:
@@ -142,8 +157,10 @@ class AudioPage(QWidget):
     def save_manual(self) -> None:
         try:
             self.analysis_id = self.repository.create_manual(
-                self.consultation.currentData(), self.sample_type.currentData(),
-                self.manual.toPlainText())
+                self.consultation.currentData(),
+                self.sample_type.currentData(),
+                self.manual.toPlainText(),
+            )
             self.refresh_history()
             QMessageBox.information(self, "Đã lưu", "Đã lưu mô tả âm thanh thủ công.")
         except (TypeError, ValueError) as error:
@@ -154,8 +171,12 @@ class AudioPage(QWidget):
             QMessageBox.warning(self, "Chưa chọn", "Chọn một kết quả trước.")
             return
         try:
-            self.repository.review(self.analysis_id, self.doctor.text(),
-                                   self.doctor_label.text(), self.note.toPlainText())
+            self.repository.review(
+                self.analysis_id,
+                self.doctor.text(),
+                self.doctor_label.text(),
+                self.note.toPlainText(),
+            )
             self.refresh_history()
             QMessageBox.information(self, "Đã lưu", "Đã lưu xác nhận của bác sĩ.")
         except ValueError as error:
@@ -167,10 +188,14 @@ class AudioPage(QWidget):
         labels = dict((value, label) for label, value in self.TYPES)
         self.history.setRowCount(len(rows))
         for index, row in enumerate(rows):
-            values = (row["created_at"], labels.get(row["sample_type"], row["sample_type"]),
-                      "Tệp WAV" if row["source_mode"] == "file" else "Nhập tay",
-                      row["pattern_label"], f"{row['ai_confidence'] * 100:.1f}%",
-                      "Có" if row["reviewed_at"] else "Chưa")
+            values = (
+                row["created_at"],
+                labels.get(row["sample_type"], row["sample_type"]),
+                "Tệp WAV" if row["source_mode"] == "file" else "Nhập tay",
+                row["pattern_label"],
+                f"{row['ai_confidence'] * 100:.1f}%",
+                "Có" if row["reviewed_at"] else "Chưa",
+            )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setData(Qt.ItemDataRole.UserRole, row["id"])
@@ -188,9 +213,14 @@ class AudioPage(QWidget):
         self.quality.setText(f"Chất lượng: {row['quality_score'] * 100:.1f}%")
         self.features.setText(
             f"Đặc trưng: RMS {row['rms_level']:.4f} • Peak {row['peak_level']:.4f} • "
-            f"ZCR {row['zero_crossing_rate']:.4f} • Tần số {row['dominant_frequency']:.1f} Hz")
-        self.result.setText(f"Mẫu hỗ trợ: {row['pattern_label']} • Tin cậy {row['ai_confidence'] * 100:.1f}%")
-        self.issues.setText("Lỗi bản ghi: " + (row["quality_issues"].replace("\n", "; ") or "Không"))
+            f"ZCR {row['zero_crossing_rate']:.4f} • Tần số {row['dominant_frequency']:.1f} Hz"
+        )
+        self.result.setText(
+            f"Mẫu hỗ trợ: {row['pattern_label']} • Tin cậy {row['ai_confidence'] * 100:.1f}%"
+        )
+        self.issues.setText(
+            "Lỗi bản ghi: " + (row["quality_issues"].replace("\n", "; ") or "Không")
+        )
         self.manual.setPlainText(row["manual_characteristic"])
         self.doctor_label.setText(row["doctor_pattern_label"] or row["pattern_label"])
         self.doctor.setText(row["reviewed_by"])
@@ -200,8 +230,10 @@ class AudioPage(QWidget):
         self.quality.setText(f"Chất lượng: {result['quality_score'] * 100:.1f}%")
         self.features.setText(
             f"Đặc trưng: RMS {result['rms_level']:.4f} • Peak {result['peak_level']:.4f} • "
-            f"ZCR {result['zero_crossing_rate']:.4f} • Tần số {result['dominant_frequency']:.1f} Hz")
+            f"ZCR {result['zero_crossing_rate']:.4f} • Tần số {result['dominant_frequency']:.1f} Hz"
+        )
         self.result.setText(
-            f"Mẫu hỗ trợ: {result['pattern_label']} • Tin cậy {result['ai_confidence'] * 100:.1f}%")
+            f"Mẫu hỗ trợ: {result['pattern_label']} • Tin cậy {result['ai_confidence'] * 100:.1f}%"
+        )
         self.issues.setText("Lỗi bản ghi: " + ("; ".join(result["quality_issues"]) or "Không"))
         self.doctor_label.setText(result["pattern_label"])

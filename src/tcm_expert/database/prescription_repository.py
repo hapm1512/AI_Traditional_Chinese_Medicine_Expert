@@ -53,9 +53,7 @@ class PrescriptionRepository:
                 (recommendation_id,),
             ).fetchone()
             if recommendation is None or not recommendation["doctor_approved"]:
-                raise ValueError(
-                    "Chỉ tạo đơn từ bài thuốc đã được bác sĩ phê duyệt."
-                )
+                raise ValueError("Chỉ tạo đơn từ bài thuốc đã được bác sĩ phê duyệt.")
             consultation_id = int(recommendation["consultation_id"])
             code = f"DT-{datetime.now():%Y%m%d%H%M%S%f}-{recommendation_id:04d}"
             cursor = connection.execute(

@@ -78,7 +78,7 @@ def test_migrates_epic_one_database(tmp_path):
 
     DatabaseManager(path).initialize()
     with sqlite3.connect(path) as migrated:
-        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 7
+        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 10
         columns = {row[1] for row in migrated.execute("PRAGMA table_info(patients)")}
     assert {"allergies", "deleted_at", "identity_number"} <= columns
 
@@ -108,15 +108,11 @@ def test_patient_validation(database):
     with pytest.raises(ValidationError):
         repository.create({"code": "BN 01", "full_name": ""})
     with pytest.raises(ValidationError):
-        repository.create(
-            {"code": "BN01", "full_name": "An", "birth_date": "2999-01-01"}
-        )
+        repository.create({"code": "BN01", "full_name": "An", "birth_date": "2999-01-01"})
 
 
 def test_consultation_and_four_diagnostics(database):
-    patient = PatientRepository(database).create(
-        {"code": "BN002", "full_name": "Trần Thị Bình"}
-    )
+    patient = PatientRepository(database).create({"code": "BN002", "full_name": "Trần Thị Bình"})
     consultations = ConsultationRepository(database)
     visit = consultations.create(patient["id"], "K-2026-001", chief_complaint="Mệt mỏi")
     for method in ("vong", "van", "van_hoi", "thiet"):
@@ -133,9 +129,7 @@ def test_consultation_and_four_diagnostics(database):
 
 
 def test_consultation_update_delete_and_diagnostic_listing(database):
-    patient = PatientRepository(database).create(
-        {"code": "BN003", "full_name": "Lê Văn Cường"}
-    )
+    patient = PatientRepository(database).create({"code": "BN003", "full_name": "Lê Văn Cường"})
     repository = ConsultationRepository(database)
     visit = repository.create(patient["id"], "K-2026-002")
     repository.add_diagnostic_entry(visit["id"], "vong", "Lưỡi", "Lưỡi nhạt")
@@ -147,17 +141,11 @@ def test_consultation_update_delete_and_diagnostic_listing(database):
 
 
 def test_diagnostic_update_delete_and_assessment(database):
-    patient = PatientRepository(database).create(
-        {"code": "BN004", "full_name": "Phạm Thị Dung"}
-    )
+    patient = PatientRepository(database).create({"code": "BN004", "full_name": "Phạm Thị Dung"})
     repository = ConsultationRepository(database)
     visit = repository.create(patient["id"], "K-2026-004")
-    entry_id = repository.add_diagnostic_entry(
-        visit["id"], "thiet", "Mạch", "Mạch trầm", 4
-    )
-    repository.update_diagnostic_entry(
-        entry_id, "thiet", "Mạch", "Mạch trầm tế", 6, "Tay trái"
-    )
+    entry_id = repository.add_diagnostic_entry(visit["id"], "thiet", "Mạch", "Mạch trầm", 4)
+    repository.update_diagnostic_entry(entry_id, "thiet", "Mạch", "Mạch trầm tế", 6, "Tay trái")
     assert repository.diagnostic_entries(visit["id"])[0]["severity"] == 6
     updated = repository.update(visit["id"], {"assessment": "Khí huyết hư"})
     assert updated["assessment"] == "Khí huyết hư"
@@ -258,21 +246,41 @@ def test_structured_pulse_and_palpation(database):
     )
     repository = ConsultationRepository(database)
     visit = repository.create(patient["id"], "K-2026-009")
-    pulse = repository.save_pulse_finding(visit["id"], {
-        "side": "left", "position": "cun", "depth": "Phù", "rate": "Sác",
-        "strength": "Hữu lực", "rhythm": "Đều", "quality": "Huyền sác",
-        "bpm": 92, "recorded_by": "Bác sĩ An",
-    })
+    pulse = repository.save_pulse_finding(
+        visit["id"],
+        {
+            "side": "left",
+            "position": "cun",
+            "depth": "Phù",
+            "rate": "Sác",
+            "strength": "Hữu lực",
+            "rhythm": "Đều",
+            "quality": "Huyền sác",
+            "bpm": 92,
+            "recorded_by": "Bác sĩ An",
+        },
+    )
     assert pulse["quality"] == "Huyền sác"
-    repository.save_pulse_finding(visit["id"], {
-        "side": "left", "position": "cun", "quality": "Huyền",
-        "recorded_by": "Bác sĩ An",
-    })
+    repository.save_pulse_finding(
+        visit["id"],
+        {
+            "side": "left",
+            "position": "cun",
+            "quality": "Huyền",
+            "recorded_by": "Bác sĩ An",
+        },
+    )
     assert len(repository.pulse_findings(visit["id"])) == 1
-    finding_id = repository.add_palpation_finding(visit["id"], {
-        "body_area": "Hạ sườn phải", "finding_type": "tenderness",
-        "characteristic": "Ấn đau nhẹ", "severity": 3, "recorded_by": "Y tá Lan",
-    })
+    finding_id = repository.add_palpation_finding(
+        visit["id"],
+        {
+            "body_area": "Hạ sườn phải",
+            "finding_type": "tenderness",
+            "characteristic": "Ấn đau nhẹ",
+            "severity": 3,
+            "recorded_by": "Y tá Lan",
+        },
+    )
     assert repository.palpation_findings(visit["id"])[0]["severity"] == 3
     repository.delete_palpation_finding(finding_id)
     assert repository.palpation_findings(visit["id"]) == []
@@ -287,14 +295,25 @@ def test_pulse_and_palpation_validation(database):
     repository = ConsultationRepository(database)
     visit = repository.create(patient["id"], "K-2026-010")
     with pytest.raises((ValidationError, ValueError)):
-        repository.save_pulse_finding(visit["id"], {
-            "side": "left", "position": "cun", "quality": "", "recorded_by": "",
-        })
+        repository.save_pulse_finding(
+            visit["id"],
+            {
+                "side": "left",
+                "position": "cun",
+                "quality": "",
+                "recorded_by": "",
+            },
+        )
     with pytest.raises((ValidationError, ValueError)):
-        repository.add_palpation_finding(visit["id"], {
-            "body_area": "Bụng", "finding_type": "invalid",
-            "characteristic": "Đau", "recorded_by": "Bác sĩ An",
-        })
+        repository.add_palpation_finding(
+            visit["id"],
+            {
+                "body_area": "Bụng",
+                "finding_type": "invalid",
+                "characteristic": "Đau",
+                "recorded_by": "Bác sĩ An",
+            },
+        )
 
 
 def test_differential_diagnosis_save_primary_and_confirmation(database):
@@ -304,19 +323,33 @@ def test_differential_diagnosis_save_primary_and_confirmation(database):
     consultation = ConsultationRepository(database).create(patient["id"], "K-2026-011")
     repository = SyndromeRepository(database)
     first, second = repository.catalogue()[:2]
-    repository.save(consultation["id"], first["id"], {
-        "confidence": 0.75, "evidence": "Mệt, ăn ít", "is_primary": True,
-        "doctor_confirmed": True,
-    })
-    repository.save(consultation["id"], second["id"], {
-        "confidence": 0.55, "evidence": "Tức ngực", "is_primary": True,
-    })
+    repository.save(
+        consultation["id"],
+        first["id"],
+        {
+            "confidence": 0.75,
+            "evidence": "Mệt, ăn ít",
+            "is_primary": True,
+            "doctor_confirmed": True,
+        },
+    )
+    repository.save(
+        consultation["id"],
+        second["id"],
+        {
+            "confidence": 0.55,
+            "evidence": "Tức ngực",
+            "is_primary": True,
+        },
+    )
     selected = repository.selected(consultation["id"])
     assert len(selected) == 2
     assert sum(item["is_primary"] for item in selected) == 1
     assert selected[0]["syndrome_id"] == second["id"]
     repository.delete(consultation["id"], second["id"])
     assert len(repository.selected(consultation["id"])) == 1
+
+
 def test_database_integrity_and_backup(database):
     assert database.integrity_check() == "ok"
     backup = database.create_backup(database.path.parent / "backup.db")

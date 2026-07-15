@@ -5,14 +5,19 @@ import wave
 import pytest
 
 from tcm_expert.database import (
-    AudioAnalysisRepository, ConsultationRepository, DatabaseManager, PatientRepository,
+    AudioAnalysisRepository,
+    ConsultationRepository,
+    DatabaseManager,
+    PatientRepository,
 )
 from tcm_expert.services import AudioAnalyzer
 
 
 def sample_wav(path, seconds=1.0, frequency=180, amplitude=9000, rate=16000):
-    frames = [int(amplitude * math.sin(2 * math.pi * frequency * index / rate))
-              for index in range(int(rate * seconds))]
+    frames = [
+        int(amplitude * math.sin(2 * math.pi * frequency * index / rate))
+        for index in range(int(rate * seconds))
+    ]
     with wave.open(str(path), "wb") as target:
         target.setnchannels(1)
         target.setsampwidth(2)
@@ -54,7 +59,9 @@ def test_repository_keeps_ai_manual_and_review(database, tmp_path):
     visit = consultation(database)
     result = AudioAnalyzer().analyze(sample_wav(tmp_path / "cough.wav"), "cough")
     repository = AudioAnalysisRepository(database)
-    analysis_id = repository.create(visit["id"], "cough", str(tmp_path / "cough.wav"), result.as_dict())
+    analysis_id = repository.create(
+        visit["id"], "cough", str(tmp_path / "cough.wav"), result.as_dict()
+    )
     manual_id = repository.create_manual(visit["id"], "cough", "Ho khan từng cơn")
     repository.review(analysis_id, "Bác sĩ An", "Ho khô", "Đã nghe lại")
     stored = repository.get(analysis_id)

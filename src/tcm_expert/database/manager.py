@@ -1,7 +1,7 @@
 import sqlite3
-from datetime import datetime
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 
 from tcm_expert.database.schema import MIGRATIONS
@@ -89,4 +89,9 @@ class DatabaseManager:
         finally:
             target.close()
             source.close()
+        with sqlite3.connect(destination) as check:
+            integrity = str(check.execute("PRAGMA integrity_check").fetchone()[0])
+        if integrity.lower() != "ok":
+            destination.unlink(missing_ok=True)
+            raise RuntimeError(f"Bản sao lưu không hợp lệ: {integrity}")
         return destination

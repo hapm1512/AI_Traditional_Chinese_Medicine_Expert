@@ -61,4 +61,6 @@ class ClinicalDecisionRepository:
             )
             if cursor.rowcount != 1:
                 raise ValidationError("Báo cáo không tồn tại hoặc đã duyệt.")
-            self.database.audit(connection, "review", "clinical_decision_report", report_id, reviewer)
+            self.database.audit(
+                connection, "review", "clinical_decision_report", report_id, reviewer
+            )

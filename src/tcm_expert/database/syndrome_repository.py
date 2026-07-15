@@ -13,9 +13,7 @@ class SyndromeRepository:
 
     def catalogue(self) -> list[dict[str, Any]]:
         with self.database.transaction() as connection:
-            rows = connection.execute(
-                "SELECT * FROM tcm_syndromes ORDER BY name"
-            ).fetchall()
+            rows = connection.execute("SELECT * FROM tcm_syndromes ORDER BY name").fetchall()
         return [dict(row) for row in rows]
 
     def selected(self, consultation_id: int) -> list[dict[str, Any]]:
@@ -31,9 +29,7 @@ class SyndromeRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def save(
-        self, consultation_id: int, syndrome_id: int, values: Mapping[str, Any]
-    ) -> None:
+    def save(self, consultation_id: int, syndrome_id: int, values: Mapping[str, Any]) -> None:
         confidence = float(values.get("confidence") or 0)
         if not 0 <= confidence <= 1:
             raise ValueError("Độ phù hợp phải từ 0 đến 100%")
@@ -82,11 +78,13 @@ class SyndromeRepository:
                 (consultation_id,),
             ).fetchone()
             pulses = connection.execute(
-                "SELECT depth,rate,strength,rhythm,quality,note FROM pulse_findings WHERE consultation_id=?",
+                "SELECT depth,rate,strength,rhythm,quality,note "
+                "FROM pulse_findings WHERE consultation_id=?",
                 (consultation_id,),
             ).fetchall()
             touches = connection.execute(
-                "SELECT body_area,characteristic,note FROM palpation_findings WHERE consultation_id=?",
+                "SELECT body_area,characteristic,note "
+                "FROM palpation_findings WHERE consultation_id=?",
                 (consultation_id,),
             ).fetchall()
         parts: list[str] = []

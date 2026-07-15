@@ -5,7 +5,6 @@ from typing import Any
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.services.formula_recommender import FormulaRecommender
 
-
 DISCLAIMER = (
     "Báo cáo hỗ trợ quyết định, không phải chẩn đoán hay đơn thuốc. "
     "Bác sĩ phải kiểm tra toàn bộ căn cứ và phê duyệt."
@@ -14,7 +13,10 @@ DISCLAIMER = (
 RED_FLAG_RULES = (
     (("đau ngực", "khó thở", "ngất"), "Dấu hiệu tim-phổi cấp; cân nhắc chuyển cấp cứu."),
     (("liệt", "méo miệng", "nói khó"), "Dấu hiệu thần kinh cấp; cân nhắc chuyển cấp cứu."),
-    (("nôn ra máu", "đi ngoài ra máu", "xuất huyết"), "Nguy cơ xuất huyết; cần đánh giá y khoa ngay."),
+    (
+        ("nôn ra máu", "đi ngoài ra máu", "xuất huyết"),
+        "Nguy cơ xuất huyết; cần đánh giá y khoa ngay.",
+    ),
     (("sốt cao", "co giật", "lơ mơ"), "Dấu hiệu toàn thân nặng; cần đánh giá y khoa ngay."),
 )
 
@@ -51,7 +53,8 @@ class ClinicalDecisionSupport:
             ).fetchall()
             counts = {
                 "Vọng": connection.execute(
-                    "SELECT COUNT(*) FROM diagnostic_entries WHERE consultation_id=? AND category='inspection'",
+                    "SELECT COUNT(*) FROM diagnostic_entries "
+                    "WHERE consultation_id=? AND category='inspection'",
                     (consultation_id,),
                 ).fetchone()[0],
                 "Văn": connection.execute(
@@ -71,7 +74,9 @@ class ClinicalDecisionSupport:
             + [str(value or "") for row in diagnostics for value in row]
             + ([str(value or "") for value in inquiry] if inquiry else [])
         ).lower()
-        red_flags = [message for words, message in RED_FLAG_RULES if any(word in text for word in words)]
+        red_flags = [
+            message for words, message in RED_FLAG_RULES if any(word in text for word in words)
+        ]
         missing = [name for name, count in counts.items() if not count]
         completeness = sum(bool(value) for value in counts.values()) / len(counts)
         suggestions = [
@@ -88,9 +93,7 @@ class ClinicalDecisionSupport:
         ]
         formula_result = self.recommender.recommend(consultation_id)
         safety_alerts = [
-            alert
-            for item in formula_result["recommendations"]
-            for alert in item["safety"]
+            alert for item in formula_result["recommendations"] for alert in item["safety"]
         ]
         high_alert = any(a["level"] in {"high", "contraindicated"} for a in safety_alerts)
         risk_level = "high" if red_flags or high_alert else "moderate" if missing else "low"

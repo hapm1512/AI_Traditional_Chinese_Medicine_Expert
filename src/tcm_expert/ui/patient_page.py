@@ -55,10 +55,15 @@ class PatientDialog(QDialog):
         self.allergies.setMaximumHeight(70)
         self.notes.setMaximumHeight(70)
         for label, field in (
-            ("Mã bệnh nhân *", self.code), ("Họ tên *", self.name),
-            ("Ngày sinh", self.birth), ("Giới tính", self.sex), ("Điện thoại", self.phone),
-            ("CCCD", self.identity), ("Địa chỉ", self.address),
-            ("Liên hệ khẩn cấp", self.emergency), ("Dị ứng", self.allergies),
+            ("Mã bệnh nhân *", self.code),
+            ("Họ tên *", self.name),
+            ("Ngày sinh", self.birth),
+            ("Giới tính", self.sex),
+            ("Điện thoại", self.phone),
+            ("CCCD", self.identity),
+            ("Địa chỉ", self.address),
+            ("Liên hệ khẩn cấp", self.emergency),
+            ("Dị ứng", self.allergies),
             ("Ghi chú", self.notes),
         ):
             form.addRow(label, field)
@@ -76,10 +81,15 @@ class PatientDialog(QDialog):
             else self.birth.date().toString("yyyy-MM-dd")
         )
         return {
-            "code": self.code.text(), "full_name": self.name.text(), "birth_date": birth_date,
-            "sex": self.sex.currentData(), "phone": self.phone.text(),
-            "identity_number": self.identity.text(), "address": self.address.text(),
-            "emergency_contact": self.emergency.text(), "allergies": self.allergies.toPlainText(),
+            "code": self.code.text(),
+            "full_name": self.name.text(),
+            "birth_date": birth_date,
+            "sex": self.sex.currentData(),
+            "phone": self.phone.text(),
+            "identity_number": self.identity.text(),
+            "address": self.address.text(),
+            "emergency_contact": self.emergency.text(),
+            "allergies": self.allergies.toPlainText(),
             "notes": self.notes.toPlainText(),
         }
 
@@ -93,8 +103,12 @@ class ConsultationDialog(QDialog):
         form = QFormLayout(self)
         self.code = QLineEdit(str(values.get("visit_code") or self._new_code()))
         self.status = QComboBox()
-        for key, text in (("draft", "Bản nháp"), ("in_review", "Đang duyệt"),
-                          ("approved", "Đã duyệt"), ("closed", "Đã đóng")):
+        for key, text in (
+            ("draft", "Bản nháp"),
+            ("in_review", "Đang duyệt"),
+            ("approved", "Đã duyệt"),
+            ("closed", "Đã đóng"),
+        ):
             self.status.addItem(text, key)
         self.status.setCurrentIndex(max(0, self.status.findData(values.get("status", "draft"))))
         self.complaint = QTextEdit(str(values.get("chief_complaint", "")))
@@ -103,9 +117,14 @@ class ConsultationDialog(QDialog):
         self.doctor = QLineEdit(str(values.get("doctor_name", "")))
         for edit in (self.complaint, self.symptoms, self.history):
             edit.setMaximumHeight(80)
-        for label, field in (("Mã lần khám *", self.code), ("Trạng thái", self.status),
-                             ("Lý do khám", self.complaint), ("Triệu chứng", self.symptoms),
-                             ("Tiền sử Tây y", self.history), ("Bác sĩ", self.doctor)):
+        for label, field in (
+            ("Mã lần khám *", self.code),
+            ("Trạng thái", self.status),
+            ("Lý do khám", self.complaint),
+            ("Triệu chứng", self.symptoms),
+            ("Tiền sử Tây y", self.history),
+            ("Bác sĩ", self.doctor),
+        ):
             form.addRow(label, field)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
@@ -119,10 +138,14 @@ class ConsultationDialog(QDialog):
         return datetime.now().strftime("K-%Y%m%d-%H%M%S")
 
     def values(self) -> dict[str, str]:
-        return {"visit_code": self.code.text(), "status": self.status.currentData(),
-                "chief_complaint": self.complaint.toPlainText(),
-                "symptoms": self.symptoms.toPlainText(),
-                "western_history": self.history.toPlainText(), "doctor_name": self.doctor.text()}
+        return {
+            "visit_code": self.code.text(),
+            "status": self.status.currentData(),
+            "chief_complaint": self.complaint.toPlainText(),
+            "symptoms": self.symptoms.toPlainText(),
+            "western_history": self.history.toPlainText(),
+            "doctor_name": self.doctor.text(),
+        }
 
 
 class PatientPage(QWidget):
@@ -141,8 +164,11 @@ class PatientPage(QWidget):
         self.search.setPlaceholderText("Tìm mã, họ tên, điện thoại...")
         self.search.textChanged.connect(self.refresh_patients)
         toolbar.addWidget(self.search, 1)
-        for text, slot in (("Thêm bệnh nhân", self.add_patient), ("Sửa", self.edit_patient),
-                           ("Xóa", self.delete_patient)):
+        for text, slot in (
+            ("Thêm bệnh nhân", self.add_patient),
+            ("Sửa", self.edit_patient),
+            ("Xóa", self.delete_patient),
+        ):
             button = QPushButton(text)
             button.clicked.connect(slot)
             toolbar.addWidget(button)
@@ -152,12 +178,8 @@ class PatientPage(QWidget):
         self.patient_table.setHorizontalHeaderLabels(
             ("Mã", "Họ tên", "Ngày sinh", "Giới tính", "Điện thoại")
         )
-        self.patient_table.setSelectionBehavior(
-            QTableWidget.SelectionBehavior.SelectRows
-        )
-        self.patient_table.setEditTriggers(
-            QTableWidget.EditTrigger.NoEditTriggers
-        )
+        self.patient_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.patient_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.patient_table.setAlternatingRowColors(True)
         self.patient_table.itemSelectionChanged.connect(self.patient_selected)
         self.patient_table.horizontalHeader().setStretchLastSection(True)
@@ -167,9 +189,11 @@ class PatientPage(QWidget):
         visit_toolbar = QHBoxLayout()
         self.patient_label = QLabel("Chọn bệnh nhân")
         visit_toolbar.addWidget(self.patient_label, 1)
-        for text, slot in (("Thêm lần khám", self.add_consultation),
-                           ("Sửa hồ sơ", self.edit_consultation),
-                           ("Xóa hồ sơ", self.delete_consultation)):
+        for text, slot in (
+            ("Thêm lần khám", self.add_consultation),
+            ("Sửa hồ sơ", self.edit_consultation),
+            ("Xóa hồ sơ", self.delete_consultation),
+        ):
             button = QPushButton(text)
             button.clicked.connect(slot)
             visit_toolbar.addWidget(button)
@@ -178,9 +202,7 @@ class PatientPage(QWidget):
         self.visit_table.setHorizontalHeaderLabels(
             ("Mã khám", "Ngày", "Trạng thái", "Lý do khám", "Bác sĩ")
         )
-        self.visit_table.setSelectionBehavior(
-            QTableWidget.SelectionBehavior.SelectRows
-        )
+        self.visit_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.visit_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.visit_table.horizontalHeader().setStretchLastSection(True)
         visit_layout.addWidget(self.visit_table)
@@ -193,8 +215,13 @@ class PatientPage(QWidget):
         self.patient_table.setRowCount(len(rows))
         sex = {"male": "Nam", "female": "Nữ", "other": "Khác", "unknown": "Chưa rõ"}
         for row, patient in enumerate(rows):
-            values = (patient["code"], patient["full_name"], patient.get("birth_date") or "",
-                      sex.get(patient.get("sex", ""), ""), patient.get("phone") or "")
+            values = (
+                patient["code"],
+                patient["full_name"],
+                patient.get("birth_date") or "",
+                sex.get(patient.get("sex", ""), ""),
+                patient.get("phone") or "",
+            )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setData(Qt.ItemDataRole.UserRole, patient["id"])
@@ -263,9 +290,7 @@ class PatientPage(QWidget):
     def delete_patient(self) -> None:
         if self.patient_id is None:
             return
-        answer = QMessageBox.question(
-            self, "Xác nhận", "Ẩn bệnh nhân này khỏi danh sách?"
-        )
+        answer = QMessageBox.question(self, "Xác nhận", "Ẩn bệnh nhân này khỏi danh sách?")
         if answer == QMessageBox.StandardButton.Yes:
             self.patients.delete(self.patient_id)
             self.patient_id = None

@@ -102,9 +102,7 @@ class MainWindow(QMainWindow):
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
         layout.addSpacing(24)
-        warning = QLabel(
-            "⚠ Kết quả chỉ tham khảo. Bác sĩ phải phê duyệt điều trị."
-        )
+        warning = QLabel("⚠ Kết quả chỉ tham khảo. Bác sĩ phải phê duyệt điều trị.")
         warning.setObjectName("warning")
         warning.setWordWrap(True)
         layout.addWidget(warning)

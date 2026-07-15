@@ -82,7 +82,9 @@ class FormulaRepository:
         if not all((code, name, doctor, ingredients)):
             raise ValueError("Cần nhập mã, tên, bác sĩ và thành phần.")
         return (
-            code, name, optional_text(values.get("category"), 200),
+            code,
+            name,
+            optional_text(values.get("category"), 200),
             optional_text(values.get("treatment_principle"), 2000),
             optional_text(values.get("indications"), 3000),
             optional_text(values.get("dosage_form"), 200),
@@ -91,9 +93,10 @@ class FormulaRepository:
             optional_text(values.get("contraindications"), 3000),
             optional_text(values.get("interactions"), 3000),
             optional_text(values.get("reference_source"), 1000),
-            "Bài thuốc kinh nghiệm chỉ dùng khi bác sĩ "
-            "chịu trách nhiệm phê duyệt.",
-            doctor, int(bool(values.get("doctor_approved", False))), ingredients,
+            "Bài thuốc kinh nghiệm chỉ dùng khi bác sĩ chịu trách nhiệm phê duyệt.",
+            doctor,
+            int(bool(values.get("doctor_approved", False))),
+            ingredients,
         )
 
     def categories(self) -> list[str]:

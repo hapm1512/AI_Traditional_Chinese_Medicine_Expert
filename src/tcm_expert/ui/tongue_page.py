@@ -6,9 +6,20 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QFileDialog, QFormLayout, QHBoxLayout, QLabel,
-    QLineEdit, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
-    QTextEdit, QVBoxLayout, QWidget,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from tcm_expert.database.manager import DatabaseManager
@@ -156,13 +167,18 @@ class TonguePage(QWidget):
             QMessageBox.warning(self, "Chưa phân tích", "Chọn một kết quả AI trước.")
             return
         try:
-            self.repository.review(self.analysis_id, {
-                "tongue_color": self.tongue_color.currentText(),
-                "coating_color": self.coating_color.currentText(),
-                "coating_thickness": self.coating_thickness.currentText(),
-                "teeth_marks": self.teeth_marks.isChecked(), "cracks": self.cracks.isChecked(),
-                "reviewed_by": self.doctor.text(), "note": self.note.toPlainText(),
-            })
+            self.repository.review(
+                self.analysis_id,
+                {
+                    "tongue_color": self.tongue_color.currentText(),
+                    "coating_color": self.coating_color.currentText(),
+                    "coating_thickness": self.coating_thickness.currentText(),
+                    "teeth_marks": self.teeth_marks.isChecked(),
+                    "cracks": self.cracks.isChecked(),
+                    "reviewed_by": self.doctor.text(),
+                    "note": self.note.toPlainText(),
+                },
+            )
             self.refresh_history()
             QMessageBox.information(self, "Đã lưu", "Đã lưu kết quả bác sĩ duyệt.")
         except ValueError as error:
@@ -173,9 +189,13 @@ class TonguePage(QWidget):
         rows = self.repository.list_for_consultation(consultation_id) if consultation_id else []
         self.history.setRowCount(len(rows))
         for index, row in enumerate(rows):
-            values = (row["created_at"], row["tongue_color"],
-                      f"{row['coating_color']} / {row['coating_thickness']}",
-                      f"{row['ai_confidence'] * 100:.1f}%", "Có" if row["reviewed_at"] else "Chưa")
+            values = (
+                row["created_at"],
+                row["tongue_color"],
+                f"{row['coating_color']} / {row['coating_thickness']}",
+                f"{row['ai_confidence'] * 100:.1f}%",
+                "Có" if row["reviewed_at"] else "Chưa",
+            )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setData(Qt.ItemDataRole.UserRole, row["id"])
@@ -192,10 +212,19 @@ class TonguePage(QWidget):
         self._show_image(Path(row["original_image_path"]))
         self._set_combo(self.tongue_color, row["doctor_tongue_color"] or row["tongue_color"])
         self._set_combo(self.coating_color, row["doctor_coating_color"] or row["coating_color"])
-        self._set_combo(self.coating_thickness,
-                        row["doctor_coating_thickness"] or row["coating_thickness"])
-        self.teeth_marks.setChecked(bool(row["doctor_teeth_marks"] if row["doctor_teeth_marks"] is not None else row["teeth_marks"]))
-        self.cracks.setChecked(bool(row["doctor_cracks"] if row["doctor_cracks"] is not None else row["cracks"]))
+        self._set_combo(
+            self.coating_thickness, row["doctor_coating_thickness"] or row["coating_thickness"]
+        )
+        self.teeth_marks.setChecked(
+            bool(
+                row["doctor_teeth_marks"]
+                if row["doctor_teeth_marks"] is not None
+                else row["teeth_marks"]
+            )
+        )
+        self.cracks.setChecked(
+            bool(row["doctor_cracks"] if row["doctor_cracks"] is not None else row["cracks"])
+        )
         self.doctor.setText(row["reviewed_by"])
         self.note.setPlainText(row["doctor_note"])
         self.quality.setText(f"Chất lượng: {row['quality_score'] * 100:.1f}%")
@@ -207,9 +236,13 @@ class TonguePage(QWidget):
         if pixmap.isNull():
             self.preview.setText("Không đọc được ảnh")
         else:
-            self.preview.setPixmap(pixmap.scaled(
-                self.preview.size(), Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation))
+            self.preview.setPixmap(
+                pixmap.scaled(
+                    self.preview.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+            )
 
     @staticmethod
     def _set_combo(combo: QComboBox, value: str) -> None:

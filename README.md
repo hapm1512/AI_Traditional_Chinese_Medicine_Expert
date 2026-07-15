@@ -1,5 +1,19 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 16 — Testing & Stable Release
+
+- Khóa phiên bản ổn định `2.0.0`.
+- Kiểm thử dữ liệu lỗi và thiếu.
+- Bắt buộc bác sĩ phê duyệt.
+- Kiểm thử luật suy luận minh bạch.
+- Kiểm tra hiệu năng khởi tạo SQLite.
+- Xác minh toàn vẹn mọi bản sao lưu.
+- Tự phục hồi cấu hình JSON hỏng.
+- Đóng gói Windows bằng PyInstaller.
+- Hỗ trợ bộ cài bằng Inno Setup.
+- Bổ sung dữ liệu minh họa an toàn.
+- Bổ sung hướng dẫn dùng và sao lưu.
+
 ## Epic 15 — Release Candidate 2
 
 - Khóa phiên bản `1.0.0 RC2`.
@@ -174,6 +188,16 @@ pip install -r requirements-dev.txt
 ```powershell
 .\scripts\check.ps1
 ```
+
+## Build Windows 2.0
+
+```powershell
+.\scripts\build.ps1
+```
+
+- Bản portable nằm trong `release`.
+- Bộ cài được tạo khi có Inno Setup.
+- Không đóng gói dữ liệu bệnh nhân.
 
 SQLite được tạo tại `%LOCALAPPDATA%\TCMExpert\data\tcm_expert.db`.
 

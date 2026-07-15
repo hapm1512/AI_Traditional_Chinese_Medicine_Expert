@@ -74,9 +74,7 @@ class FormulaPage(QWidget):
         layout.addLayout(filters)
         splitter = QSplitter()
         self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(
-            ("Mã", "Tên bài thuốc", "Nhóm", "Nguồn", "Vị")
-        )
+        self.table.setHorizontalHeaderLabels(("Mã", "Tên bài thuốc", "Nhóm", "Nguồn", "Vị"))
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -108,12 +106,16 @@ class FormulaPage(QWidget):
         self.df_interactions = QTextEdit()
         self.df_source = QLineEdit()
         self.df_approved = QCheckBox("Bác sĩ xác nhận cho phép tham khảo")
-        for widget in (self.df_indications, self.df_ingredients, self.df_directions,
-                       self.df_modifications, self.df_contraindications, self.df_interactions):
+        for widget in (
+            self.df_indications,
+            self.df_ingredients,
+            self.df_directions,
+            self.df_modifications,
+            self.df_contraindications,
+            self.df_interactions,
+        ):
             widget.setMaximumHeight(70)
-        self.df_ingredients.setPlaceholderText(
-            "Mỗi vị một dòng: tên — lượng — cách chế biến"
-        )
+        self.df_ingredients.setPlaceholderText("Mỗi vị một dòng: tên — lượng — cách chế biến")
         form.addRow("Mã bài thuốc *", self.df_code)
         form.addRow("Tên bài thuốc *", self.df_name)
         form.addRow("Nhóm", self.df_category)
@@ -206,9 +208,7 @@ class FormulaPage(QWidget):
         selector.addWidget(self.ai_visit, 1)
         selector.addWidget(run)
         layout.addLayout(selector)
-        warning = QLabel(
-            "⚠ Không tự động kê toa hoặc đặt liều. Cảnh báo an toàn luôn hiển thị."
-        )
+        warning = QLabel("⚠ Không tự động kê toa hoặc đặt liều. Cảnh báo an toàn luôn hiển thị.")
         warning.setObjectName("warning")
         warning.setWordWrap(True)
         layout.addWidget(warning)
@@ -271,8 +271,12 @@ class FormulaPage(QWidget):
         rows = [row for row in self.formulas.search() if row["source_type"] == "doctor"]
         self.doctor_table.setRowCount(len(rows))
         for index, row in enumerate(rows):
-            values = (row["code"], row["name"], row["created_by"],
-                      "Có" if row["doctor_approved"] else "Chưa")
+            values = (
+                row["code"],
+                row["name"],
+                row["created_by"],
+                "Có" if row["doctor_approved"] else "Chưa",
+            )
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setData(Qt.ItemDataRole.UserRole, row["id"])
@@ -299,8 +303,11 @@ class FormulaPage(QWidget):
         self.df_approved.setChecked(bool(row["doctor_approved"]))
 
     def doctor_formula_values(self) -> dict[str, object]:
-        return {"code": self.df_code.text(), "name": self.df_name.text(),
-            "category": self.df_category.text(), "created_by": self.df_doctor.text(),
+        return {
+            "code": self.df_code.text(),
+            "name": self.df_name.text(),
+            "category": self.df_category.text(),
+            "created_by": self.df_doctor.text(),
             "treatment_principle": self.df_principle.text(),
             "indications": self.df_indications.toPlainText(),
             "ingredients_text": self.df_ingredients.toPlainText(),
@@ -309,7 +316,8 @@ class FormulaPage(QWidget):
             "contraindications": self.df_contraindications.toPlainText(),
             "interactions": self.df_interactions.toPlainText(),
             "reference_source": self.df_source.text(),
-            "doctor_approved": self.df_approved.isChecked()}
+            "doctor_approved": self.df_approved.isChecked(),
+        }
 
     def save_doctor_formula(self) -> None:
         try:
@@ -317,7 +325,8 @@ class FormulaPage(QWidget):
                 self.formulas.create_doctor_formula(self.doctor_formula_values())
             else:
                 self.formulas.update_doctor_formula(
-                    self.doctor_formula_id, self.doctor_formula_values())
+                    self.doctor_formula_id, self.doctor_formula_values()
+                )
         except Exception as error:
             QMessageBox.warning(self, "Chưa thể lưu", str(error))
             return
@@ -338,11 +347,23 @@ class FormulaPage(QWidget):
 
     def clear_doctor_formula(self) -> None:
         self.doctor_formula_id = None
-        for widget in (self.df_code, self.df_name, self.df_category, self.df_doctor,
-                       self.df_principle, self.df_source):
+        for widget in (
+            self.df_code,
+            self.df_name,
+            self.df_category,
+            self.df_doctor,
+            self.df_principle,
+            self.df_source,
+        ):
             widget.clear()
-        for widget in (self.df_indications, self.df_ingredients, self.df_directions,
-                       self.df_modifications, self.df_contraindications, self.df_interactions):
+        for widget in (
+            self.df_indications,
+            self.df_ingredients,
+            self.df_directions,
+            self.df_modifications,
+            self.df_contraindications,
+            self.df_interactions,
+        ):
             widget.clear()
         self.df_approved.setChecked(False)
 

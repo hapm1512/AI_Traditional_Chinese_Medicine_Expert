@@ -52,7 +52,9 @@ class AudioAnalyzer:
         duration = frame_count / sample_rate
         peak = max(abs(value) for value in mono) / 32768
         rms = math.sqrt(sum(value * value for value in mono) / len(mono)) / 32768
-        crossings = sum(1 for left, right in zip(mono, mono[1:]) if (left < 0) != (right < 0))
+        crossings = sum(
+            1 for left, right in zip(mono, mono[1:], strict=False) if (left < 0) != (right < 0)
+        )
         zcr = crossings / max(1, len(mono) - 1)
         dominant = self._dominant_frequency(mono, sample_rate)
         issues: list[str] = []
@@ -73,9 +75,18 @@ class AudioAnalyzer:
         label = self._label(sample_type, rms, zcr, dominant)
         confidence = quality * (0.72 if sample_type != "other" else 0.55)
         return AudioAnalysisResult(
-            hashlib.sha256(path.read_bytes()).hexdigest(), round(duration, 4), sample_rate,
-            channels, round(quality, 4), tuple(issues), round(rms, 6), round(peak, 6),
-            round(zcr, 6), round(dominant, 2), label, round(confidence, 4),
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+            round(duration, 4),
+            sample_rate,
+            channels,
+            round(quality, 4),
+            tuple(issues),
+            round(rms, 6),
+            round(peak, 6),
+            round(zcr, 6),
+            round(dominant, 2),
+            label,
+            round(confidence, 4),
             {"frames": float(frame_count), "sample_width": float(sample_width)},
         )
 

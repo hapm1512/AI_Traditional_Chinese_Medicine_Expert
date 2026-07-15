@@ -2,8 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from tcm_expert.database import (ClinicalDecisionRepository, ConsultationRepository,
-    DatabaseManager, PatientRepository, ValidationError)
+from tcm_expert.database import (
+    ClinicalDecisionRepository,
+    ConsultationRepository,
+    DatabaseManager,
+    PatientRepository,
+    ValidationError,
+)
 from tcm_expert.services.clinical_decision_support import ClinicalDecisionSupport
 
 

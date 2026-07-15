@@ -11,10 +11,16 @@ class AudioAnalysisRepository:
     def __init__(self, database: DatabaseManager):
         self.database = database
 
-    def create(self, consultation_id: int, sample_type: str, path: str,
-               result: dict[str, Any]) -> int:
+    def create(
+        self, consultation_id: int, sample_type: str, path: str, result: dict[str, Any]
+    ) -> int:
         with self.database.transaction() as connection:
-            if connection.execute("SELECT 1 FROM consultations WHERE id=?", (consultation_id,)).fetchone() is None:
+            if (
+                connection.execute(
+                    "SELECT 1 FROM consultations WHERE id=?", (consultation_id,)
+                ).fetchone()
+                is None
+            ):
                 raise ValueError("Hồ sơ khám không tồn tại")
             cursor = connection.execute(
                 """INSERT INTO audio_analyses
@@ -22,12 +28,24 @@ class AudioAnalysisRepository:
                  duration_seconds,sample_rate,channels,quality_score,quality_issues,rms_level,
                  peak_level,zero_crossing_rate,dominant_frequency,pattern_label,ai_confidence,ai_detail)
                 VALUES(?,?,'file',?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (consultation_id, sample_type, required_text(path, "Tệp âm thanh", 2000),
-                 result["audio_sha256"], result["duration_seconds"], result["sample_rate"],
-                 result["channels"], result["quality_score"], "\n".join(result["quality_issues"]),
-                 result["rms_level"], result["peak_level"], result["zero_crossing_rate"],
-                 result["dominant_frequency"], result["pattern_label"], result["ai_confidence"],
-                 json.dumps(result["metrics"], ensure_ascii=False)),
+                (
+                    consultation_id,
+                    sample_type,
+                    required_text(path, "Tệp âm thanh", 2000),
+                    result["audio_sha256"],
+                    result["duration_seconds"],
+                    result["sample_rate"],
+                    result["channels"],
+                    result["quality_score"],
+                    "\n".join(result["quality_issues"]),
+                    result["rms_level"],
+                    result["peak_level"],
+                    result["zero_crossing_rate"],
+                    result["dominant_frequency"],
+                    result["pattern_label"],
+                    result["ai_confidence"],
+                    json.dumps(result["metrics"], ensure_ascii=False),
+                ),
             )
             analysis_id = int(cursor.lastrowid)
             self.database.audit(connection, "create", "audio_analysis", analysis_id)
@@ -36,7 +54,12 @@ class AudioAnalysisRepository:
     def create_manual(self, consultation_id: int, sample_type: str, characteristic: str) -> int:
         characteristic = required_text(characteristic, "Mô tả âm thanh", 1000)
         with self.database.transaction() as connection:
-            if connection.execute("SELECT 1 FROM consultations WHERE id=?", (consultation_id,)).fetchone() is None:
+            if (
+                connection.execute(
+                    "SELECT 1 FROM consultations WHERE id=?", (consultation_id,)
+                ).fetchone()
+                is None
+            ):
                 raise ValueError("Hồ sơ khám không tồn tại")
             cursor = connection.execute(
                 """INSERT INTO audio_analyses
@@ -58,13 +81,20 @@ class AudioAnalysisRepository:
 
     def get(self, analysis_id: int) -> dict[str, Any] | None:
         with self.database.transaction() as connection:
-            row = connection.execute("SELECT * FROM audio_analyses WHERE id=?", (analysis_id,)).fetchone()
+            row = connection.execute(
+                "SELECT * FROM audio_analyses WHERE id=?", (analysis_id,)
+            ).fetchone()
             return dict(row) if row else None
 
     def review(self, analysis_id: int, reviewer: str, label: str, note: str) -> None:
         reviewer = required_text(reviewer, "Bác sĩ", 150)
         with self.database.transaction() as connection:
-            if connection.execute("SELECT 1 FROM audio_analyses WHERE id=?", (analysis_id,)).fetchone() is None:
+            if (
+                connection.execute(
+                    "SELECT 1 FROM audio_analyses WHERE id=?", (analysis_id,)
+                ).fetchone()
+                is None
+            ):
                 raise ValueError("Kết quả âm thanh không tồn tại")
             connection.execute(
                 """UPDATE audio_analyses SET doctor_pattern_label=?,doctor_note=?,reviewed_by=?,

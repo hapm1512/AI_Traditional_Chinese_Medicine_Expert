@@ -1,10 +1,25 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import (QComboBox, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
-    QPushButton, QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QComboBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-from tcm_expert.database import (ClinicalDecisionRepository, ConsultationRepository,
-    PatientRepository, ValidationError)
+from tcm_expert.database import (
+    ClinicalDecisionRepository,
+    ConsultationRepository,
+    PatientRepository,
+    ValidationError,
+)
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.services.clinical_decision_support import ClinicalDecisionSupport
 
@@ -80,9 +95,12 @@ class ClinicalSupportPage(QWidget):
         self.table.setRowCount(len(rows))
         labels = {"low": "Thấp", "moderate": "Trung bình", "high": "Cao"}
         for index, row in enumerate(rows):
-            values = (row["created_at"], f"{float(row['completeness_score']) * 100:.0f}%",
+            values = (
+                row["created_at"],
+                f"{float(row['completeness_score']) * 100:.0f}%",
                 labels.get(row["risk_level"], row["risk_level"]),
-                "Đã duyệt" if row["status"] == "reviewed" else "Bản nháp")
+                "Đã duyệt" if row["status"] == "reviewed" else "Bản nháp",
+            )
             for column, value in enumerate(values):
                 self.table.setItem(index, column, QTableWidgetItem(str(value)))
         self.detail.clear()
@@ -105,20 +123,41 @@ class ClinicalSupportPage(QWidget):
         if saved is None:
             return
         report = saved["report"]
-        lines = [f"BỆNH NHÂN: {report['patient']}",
+        lines = [
+            f"BỆNH NHÂN: {report['patient']}",
             f"ĐỘ ĐẦY ĐỦ TỨ CHẨN: {report['completeness_score'] * 100:.0f}%",
-            f"MỨC NGUY CƠ: {report['risk_level'].upper()}", "",
+            f"MỨC NGUY CƠ: {report['risk_level'].upper()}",
+            "",
             "DỮ LIỆU THIẾU: " + (", ".join(report["missing_data"]) or "Không"),
             "CẢNH BÁO ĐỎ:",
-            *([f"• {item}" for item in report["red_flags"]] or ["• Không phát hiện"]), "",
+            *([f"• {item}" for item in report["red_flags"]] or ["• Không phát hiện"]),
+            "",
             "GỢI Ý CHỨNG:",
-            *([f"• {item['name']} — {item['confidence'] * 100:.0f}% — {item['evidence']}"
-               for item in report["syndrome_suggestions"]] or ["• Chưa có"]), "",
+            *(
+                [
+                    f"• {item['name']} — {item['confidence'] * 100:.0f}% — {item['evidence']}"
+                    for item in report["syndrome_suggestions"]
+                ]
+                or ["• Chưa có"]
+            ),
+            "",
             "GỢI Ý BÀI THUỐC THAM KHẢO:",
-            *([f"• {item['name']} — điểm {item['score']}" for item in report["formula_suggestions"]]
-              or ["• Chưa có"]), "", "CẢNH BÁO AN TOÀN:",
-            *([f"• [{item['level']}] {item['message']}" for item in report["safety_alerts"]]
-              or ["• Chưa ghi nhận"]), "", report["disclaimer"]]
+            *(
+                [
+                    f"• {item['name']} — điểm {item['score']}"
+                    for item in report["formula_suggestions"]
+                ]
+                or ["• Chưa có"]
+            ),
+            "",
+            "CẢNH BÁO AN TOÀN:",
+            *(
+                [f"• [{item['level']}] {item['message']}" for item in report["safety_alerts"]]
+                or ["• Chưa ghi nhận"]
+            ),
+            "",
+            report["disclaimer"],
+        ]
         self.detail.setPlainText("\n".join(lines))
 
     def review(self) -> None:

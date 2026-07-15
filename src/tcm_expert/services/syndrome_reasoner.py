@@ -2,7 +2,6 @@ import re
 import unicodedata
 from typing import Any
 
-
 RULES = {
     "TYKHIHU": ("mệt", "ăn ít", "đại tiện lỏng", "bụng trướng", "lưỡi nhạt", "mạch hư"),
     "CANUAT": ("căng thẳng", "dễ cáu", "tức ngực", "hạ sườn", "hay thở dài", "mạch huyền"),

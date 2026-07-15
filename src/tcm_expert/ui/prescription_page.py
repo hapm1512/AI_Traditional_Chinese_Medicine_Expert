@@ -40,8 +40,7 @@ class PrescriptionPage(QWidget):
         title.setObjectName("title")
         layout.addWidget(title)
         warning = QLabel(
-            "⚠ Chỉ tạo từ bài thuốc đã duyệt. "
-            "Bác sĩ chịu trách nhiệm đơn và liều dùng."
+            "⚠ Chỉ tạo từ bài thuốc đã duyệt. Bác sĩ chịu trách nhiệm đơn và liều dùng."
         )
         warning.setObjectName("warning")
         warning.setWordWrap(True)
@@ -92,9 +91,7 @@ class PrescriptionPage(QWidget):
         right = QWidget()
         right_layout = QVBoxLayout(right)
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(
-            ("Mã đơn", "Bài thuốc", "Bác sĩ", "Trạng thái")
-        )
+        self.table.setHorizontalHeaderLabels(("Mã đơn", "Bài thuốc", "Bác sĩ", "Trạng thái"))
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -214,9 +211,7 @@ class PrescriptionPage(QWidget):
     def create_prescription(self) -> None:
         recommendation_id = self.recommendation.currentData()
         if recommendation_id is None:
-            QMessageBox.warning(
-                self, "Thiếu dữ liệu", "Chưa có bài thuốc được phê duyệt."
-            )
+            QMessageBox.warning(self, "Thiếu dữ liệu", "Chưa có bài thuốc được phê duyệt.")
             return
         try:
             self.prescriptions.create(
@@ -234,9 +229,7 @@ class PrescriptionPage(QWidget):
             QMessageBox.warning(self, "Chưa thể tạo đơn", str(error))
             return
         self.refresh_prescriptions()
-        QMessageBox.information(
-            self, "Đã tạo", "Đã tạo đơn nháp để bác sĩ kiểm tra."
-        )
+        QMessageBox.information(self, "Đã tạo", "Đã tạo đơn nháp để bác sĩ kiểm tra.")
 
     def approve_prescription(self) -> None:
         row = self.table.currentRow()

@@ -4,7 +4,10 @@ import pytest
 from PIL import Image, ImageDraw
 
 from tcm_expert.database import (
-    ConsultationRepository, DatabaseManager, PatientRepository, TongueAnalysisRepository,
+    ConsultationRepository,
+    DatabaseManager,
+    PatientRepository,
+    TongueAnalysisRepository,
 )
 from tcm_expert.services import TongueAnalyzer
 
@@ -53,11 +56,18 @@ def test_repository_preserves_ai_and_doctor_review(database, tmp_path):
     result = TongueAnalyzer().analyze(path)
     repository = TongueAnalysisRepository(database)
     analysis_id = repository.create(visit["id"], str(path), result.as_dict())
-    repository.review(analysis_id, {
-        "tongue_color": "Đỏ", "coating_color": "Trắng",
-        "coating_thickness": "Mỏng", "teeth_marks": True, "cracks": False,
-        "reviewed_by": "Bác sĩ An", "note": "Đã đối chiếu ảnh gốc",
-    })
+    repository.review(
+        analysis_id,
+        {
+            "tongue_color": "Đỏ",
+            "coating_color": "Trắng",
+            "coating_thickness": "Mỏng",
+            "teeth_marks": True,
+            "cracks": False,
+            "reviewed_by": "Bác sĩ An",
+            "note": "Đã đối chiếu ảnh gốc",
+        },
+    )
     stored = repository.get(analysis_id)
     assert stored["image_sha256"] == result.image_sha256
     assert stored["doctor_tongue_color"] == "Đỏ"

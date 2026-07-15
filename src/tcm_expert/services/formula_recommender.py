@@ -6,7 +6,6 @@ from typing import Any
 
 from tcm_expert.database.manager import DatabaseManager
 
-
 DISCLAIMER = (
     "Kết quả chỉ hỗ trợ tham khảo; không phải đơn thuốc. "
     "Bác sĩ phải kiểm tra, quyết định bài thuốc, gia giảm và liều dùng."
@@ -65,7 +64,11 @@ class FormulaRecommender:
             )
         ranked.sort(key=lambda item: (-item["score"], item["name"]))
         principles = list(context.treatment_principles) or ["Chưa có pháp trị được xác nhận"]
-        return {"principles": principles, "recommendations": ranked[:limit], "disclaimer": DISCLAIMER}
+        return {
+            "principles": principles,
+            "recommendations": ranked[:limit],
+            "disclaimer": DISCLAIMER,
+        }
 
     def _context(self, consultation_id: int) -> RecommendationContext:
         with self.database.transaction() as connection:
@@ -154,7 +157,9 @@ class FormulaRecommender:
                 alerts.append(
                     {
                         "level": str(item["severity"]),
-                        "message": f"{item['name_vi']} ↔ {drug or 'thuốc đang dùng'}: {item['effect']}",
+                        "message": (
+                            f"{item['name_vi']} ↔ {drug or 'thuốc đang dùng'}: {item['effect']}"
+                        ),
                     }
                 )
         if not context.allergies.strip():

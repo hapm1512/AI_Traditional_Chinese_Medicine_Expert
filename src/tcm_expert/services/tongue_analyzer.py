@@ -53,12 +53,19 @@ class TongueAnalyzer:
         if issues:
             confidence *= 0.82
         return TongueAnalysisResult(
-            hashlib.sha256(image_path.read_bytes()).hexdigest(), width, height,
-            round(quality, 4), tuple(issues), round(segmentation, 4),
-            self._tongue_color(metrics), self._coating_color(metrics),
-            self._coating_thickness(metrics), metrics["edge_irregularity"] >= 0.24,
+            hashlib.sha256(image_path.read_bytes()).hexdigest(),
+            width,
+            height,
+            round(quality, 4),
+            tuple(issues),
+            round(segmentation, 4),
+            self._tongue_color(metrics),
+            self._coating_color(metrics),
+            self._coating_thickness(metrics),
+            metrics["edge_irregularity"] >= 0.24,
             metrics["dark_ratio"] >= 0.075 and sharpness >= 18,
-            round(confidence, 4), {**metrics, "sharpness": sharpness, "exposure": exposure},
+            round(confidence, 4),
+            {**metrics, "sharpness": sharpness, "exposure": exposure},
         )
 
     @staticmethod
@@ -103,8 +110,19 @@ class TongueAnalyzer:
     @staticmethod
     def _metrics(pixels: list[tuple[int, int, int]]) -> dict[str, float]:
         if not pixels:
-            return dict.fromkeys(("red", "green", "blue", "saturation", "brightness",
-                                  "pale_ratio", "dark_ratio", "edge_irregularity"), 0.0)
+            return dict.fromkeys(
+                (
+                    "red",
+                    "green",
+                    "blue",
+                    "saturation",
+                    "brightness",
+                    "pale_ratio",
+                    "dark_ratio",
+                    "edge_irregularity",
+                ),
+                0.0,
+            )
         count = len(pixels)
         red = sum(p[0] for p in pixels) / count
         green = sum(p[1] for p in pixels) / count
@@ -113,11 +131,16 @@ class TongueAnalyzer:
         pale = sum(1 for r, g, _ in pixels if r > 150 and abs(r - g) < 55) / count
         dark = sum(1 for pixel in pixels if max(pixel) < 95) / count
         variance = math.sqrt(sum((r - red) ** 2 for r, _, _ in pixels) / count) / 255
-        return {"red": round(red, 3), "green": round(green, 3), "blue": round(blue, 3),
-                "saturation": round(sum(v[1] for v in hsv) / count, 4),
-                "brightness": round(sum(v[2] for v in hsv) / count, 4),
-                "pale_ratio": round(pale, 4), "dark_ratio": round(dark, 4),
-                "edge_irregularity": round(variance, 4)}
+        return {
+            "red": round(red, 3),
+            "green": round(green, 3),
+            "blue": round(blue, 3),
+            "saturation": round(sum(v[1] for v in hsv) / count, 4),
+            "brightness": round(sum(v[2] for v in hsv) / count, 4),
+            "pale_ratio": round(pale, 4),
+            "dark_ratio": round(dark, 4),
+            "edge_irregularity": round(variance, 4),
+        }
 
     @staticmethod
     def _tongue_color(m: dict[str, float]) -> str:

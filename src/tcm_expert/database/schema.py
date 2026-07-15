@@ -401,7 +401,8 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
             image_height INTEGER NOT NULL,
             quality_score REAL NOT NULL CHECK(quality_score BETWEEN 0 AND 1),
             quality_issues TEXT NOT NULL DEFAULT '',
-            segmentation_confidence REAL NOT NULL DEFAULT 0 CHECK(segmentation_confidence BETWEEN 0 AND 1),
+            segmentation_confidence REAL NOT NULL DEFAULT 0
+                CHECK(segmentation_confidence BETWEEN 0 AND 1),
             tongue_color TEXT NOT NULL DEFAULT '',
             coating_color TEXT NOT NULL DEFAULT '',
             coating_thickness TEXT NOT NULL DEFAULT '',
@@ -412,7 +413,8 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
             doctor_tongue_color TEXT NOT NULL DEFAULT '',
             doctor_coating_color TEXT NOT NULL DEFAULT '',
             doctor_coating_thickness TEXT NOT NULL DEFAULT '',
-            doctor_teeth_marks INTEGER CHECK(doctor_teeth_marks IS NULL OR doctor_teeth_marks IN (0,1)),
+            doctor_teeth_marks INTEGER
+                CHECK(doctor_teeth_marks IS NULL OR doctor_teeth_marks IN (0,1)),
             doctor_cracks INTEGER CHECK(doctor_cracks IS NULL OR doctor_cracks IN (0,1)),
             doctor_note TEXT NOT NULL DEFAULT '',
             reviewed_by TEXT NOT NULL DEFAULT '',
@@ -420,7 +422,8 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
         );
-        CREATE INDEX idx_tongue_analysis_consultation ON tongue_analyses(consultation_id, created_at DESC);
+        CREATE INDEX idx_tongue_analysis_consultation
+            ON tongue_analyses(consultation_id, created_at DESC);
         CREATE INDEX idx_tongue_analysis_sha256 ON tongue_analyses(image_sha256);
         """,
     ),
