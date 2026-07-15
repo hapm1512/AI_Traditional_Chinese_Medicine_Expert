@@ -9,6 +9,7 @@ from tcm_expert.database.repositories import (
     ReferenceRepository,
 )
 from tcm_expert.database.syndrome_repository import SyndromeRepository
+from tcm_expert.database.tongue_repository import TongueAnalysisRepository
 from tcm_expert.database.validation import ValidationError
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "PrescriptionRepository",
     "ReferenceRepository",
     "SyndromeRepository",
+    "TongueAnalysisRepository",
     "ValidationError",
 ]

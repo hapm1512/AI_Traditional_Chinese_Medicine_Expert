@@ -1,6 +1,18 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 1.1.0
+## Epic 12 — Tongue Vision AI
+
+- Nhập ảnh lưỡi từ tệp cục bộ.
+- Kiểm tra sáng, nét, độ phân giải.
+- Khoanh vùng lưỡi bằng thị giác offline.
+- Mô tả màu lưỡi và rêu lưỡi.
+- Gợi ý dấu răng và vết nứt.
+- Lưu ảnh gốc cùng mã SHA-256.
+- Hiển thị độ tin cậy từng lần phân tích.
+- Bác sĩ chỉnh sửa và duyệt kết quả.
+- Không đưa ra chẩn đoán độc lập.
+
+## Phiên bản 1.2.0
 
 ## Epic 11 — Đơn thuốc bác sĩ
 

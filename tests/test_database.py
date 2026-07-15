@@ -39,6 +39,7 @@ EXPECTED_TABLES = {
     "palpation_findings",
     "prescriptions",
     "prescription_items",
+    "tongue_analyses",
 }
 
 
@@ -60,7 +61,7 @@ def test_database_initialization_is_idempotent(database):
         versions = [row[0] for row in connection.execute("SELECT version FROM schema_version")]
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
     assert EXPECTED_TABLES <= tables
-    assert versions == [1, 2, 3, 4, 5, 6]
+    assert versions == [1, 2, 3, 4, 5, 6, 7]
     assert integrity == "ok"
 
 
@@ -75,7 +76,7 @@ def test_migrates_epic_one_database(tmp_path):
 
     DatabaseManager(path).initialize()
     with sqlite3.connect(path) as migrated:
-        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 6
+        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 7
         columns = {row[1] for row in migrated.execute("PRAGMA table_info(patients)")}
     assert {"allergies", "deleted_at", "identity_number"} <= columns
 

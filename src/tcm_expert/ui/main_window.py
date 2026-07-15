@@ -15,6 +15,7 @@ from tcm_expert.ui.diagnosis_page import DiagnosisPage
 from tcm_expert.ui.formula_page import FormulaPage
 from tcm_expert.ui.patient_page import PatientPage
 from tcm_expert.ui.prescription_page import PrescriptionPage
+from tcm_expert.ui.tongue_page import TonguePage
 
 
 class MainWindow(QMainWindow):
@@ -37,6 +38,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(self._dashboard(clinic_name, database_counts or {}))
         self.pages.addWidget(PatientPage(database))
         self.pages.addWidget(DiagnosisPage(database))
+        self.pages.addWidget(TonguePage(database))
         self.pages.addWidget(FormulaPage(database))
         self.pages.addWidget(PrescriptionPage(database))
         layout.addWidget(self._sidebar())
@@ -57,15 +59,15 @@ class MainWindow(QMainWindow):
                 "Tổng quan",
                 "Quản lý bệnh nhân",
                 "Hỗ trợ chẩn đoán",
-                "Tra cứu dược liệu",
+                "AI phân tích lưỡi",
                 "Bài thuốc tham khảo",
                 "Đơn thuốc bác sĩ",
                 "Cài đặt",
             )
         ):
             button = QPushButton(text)
-            page_index = 3 if index == 4 else (4 if index == 5 else index)
-            enabled = index < 3 or index in (4, 5)
+            page_index = index
+            enabled = index < 6
             button.setCheckable(enabled)
             if enabled:
                 button.clicked.connect(
@@ -75,7 +77,7 @@ class MainWindow(QMainWindow):
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 1.1.0"))
+        layout.addWidget(QLabel("Phiên bản 1.2.0"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:
