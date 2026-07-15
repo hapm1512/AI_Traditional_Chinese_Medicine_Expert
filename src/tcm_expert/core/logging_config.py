@@ -13,4 +13,3 @@ def configure_logging(log_dir: Path) -> None:
     root.setLevel(logging.INFO)
     root.handlers.clear()
     root.addHandler(handler)
-

@@ -6,4 +6,3 @@ def test_paths_create_required_directories(tmp_path):
     paths.ensure()
     assert paths.data.is_dir()
     assert paths.logs.is_dir()
-

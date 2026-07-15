@@ -6,4 +6,3 @@ def test_settings_round_trip(tmp_path):
     expected = AppSettings(clinic_name="Phòng khám thử nghiệm")
     expected.save(path)
     assert AppSettings.load(path) == expected
-

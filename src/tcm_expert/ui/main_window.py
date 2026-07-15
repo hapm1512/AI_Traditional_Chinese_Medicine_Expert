@@ -1,11 +1,17 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
 )
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, clinic_name: str):
+    def __init__(self, clinic_name: str, database_counts: dict[str, int] | None = None):
         super().__init__()
         self.setWindowTitle("AI Traditional Chinese Medicine Expert")
         self.resize(1180, 720)
@@ -16,7 +22,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         layout.addWidget(self._sidebar())
-        layout.addWidget(self._dashboard(clinic_name), 1)
+        layout.addWidget(self._dashboard(clinic_name, database_counts or {}), 1)
         self.setCentralWidget(root)
 
     def _sidebar(self) -> QWidget:
@@ -28,13 +34,20 @@ class MainWindow(QMainWindow):
         logo.setObjectName("title")
         layout.addWidget(logo)
         layout.addSpacing(24)
-        for text in ("Tổng quan", "Tiếp nhận bệnh nhân", "Hỗ trợ chẩn đoán", "Tra cứu dược liệu", "Bài thuốc tham khảo", "Cài đặt"):
+        for text in (
+            "Tổng quan",
+            "Tiếp nhận bệnh nhân",
+            "Hỗ trợ chẩn đoán",
+            "Tra cứu dược liệu",
+            "Bài thuốc tham khảo",
+            "Cài đặt",
+        ):
             layout.addWidget(QPushButton(text))
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 0.1.0"))
+        layout.addWidget(QLabel("Phiên bản 0.2.0"))
         return side
 
-    def _dashboard(self, clinic_name: str) -> QWidget:
+    def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:
         content = QWidget()
         layout = QVBoxLayout(content)
         layout.setContentsMargins(36, 30, 36, 30)
@@ -50,8 +63,17 @@ class MainWindow(QMainWindow):
         warning.setWordWrap(True)
         layout.addWidget(warning)
         layout.addSpacing(24)
-        layout.addWidget(self._card("Nền tảng sẵn sàng", "SQLite đã kết nối • Dữ liệu được lưu cục bộ"))
-        layout.addWidget(self._card("Epic tiếp theo", "Xây dựng dữ liệu nền và quản lý danh mục"))
+        layout.addWidget(
+            self._card(
+                "Nền tảng dữ liệu sẵn sàng", "SQLite đã kết nối • Dữ liệu bệnh nhân lưu cục bộ"
+            )
+        )
+        summary = (
+            f"{database_counts.get('materia_medica', 0)} dược liệu • "
+            f"{database_counts.get('formulas', 0)} phương thuốc • "
+            f"{database_counts.get('tcm_syndromes', 0)} hội chứng mẫu"
+        )
+        layout.addWidget(self._card("Danh mục tham chiếu", summary))
         layout.addStretch()
         footer = QLabel("Copyright Hai Pham • Clinical Decision Support")
         footer.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -69,4 +91,3 @@ class MainWindow(QMainWindow):
         layout.addWidget(heading)
         layout.addWidget(QLabel(body))
         return card
-

@@ -1,9 +1,10 @@
-from contextlib import contextmanager
-from pathlib import Path
 import sqlite3
 from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
 
 from tcm_expert.database.schema import MIGRATIONS
+from tcm_expert.database.seed import seed_reference_data
 
 
 class DatabaseManager:
@@ -11,10 +12,11 @@ class DatabaseManager:
         self.path = path
 
     def connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.path)
+        connection = sqlite3.connect(self.path, timeout=10)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA journal_mode = WAL")
+        connection.execute("PRAGMA busy_timeout = 10000")
         return connection
 
     @contextmanager
@@ -39,8 +41,29 @@ class DatabaseManager:
                 if version > current:
                     connection.executescript(script)
                     connection.execute("INSERT INTO schema_version(version) VALUES (?)", (version,))
+            seed_reference_data(connection)
+
+    @staticmethod
+    def audit(
+        connection: sqlite3.Connection,
+        action: str,
+        entity_type: str,
+        entity_id: int | None,
+        detail: str = "",
+    ) -> None:
+        connection.execute(
+            "INSERT INTO audit_log(action,entity_type,entity_id,detail) VALUES(?,?,?,?)",
+            (action, entity_type, entity_id, detail),
+        )
+
+    def reference_counts(self) -> dict[str, int]:
+        tables = ("symptoms", "tcm_syndromes", "diseases", "materia_medica", "formulas")
+        with self.transaction() as connection:
+            return {
+                table: connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+                for table in tables
+            }
 
     def health_check(self) -> bool:
         with self.transaction() as connection:
             return connection.execute("SELECT 1").fetchone()[0] == 1
-

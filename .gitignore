@@ -6,7 +6,9 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+uv.lock
 *.egg-info/
-data/*.db
+*.db
+*.db-shm
+*.db-wal
 logs/*.log
-

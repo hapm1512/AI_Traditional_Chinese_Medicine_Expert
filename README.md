@@ -2,14 +2,18 @@
 
 Phần mềm hỗ trợ nhân viên phòng khám Đông y. Mọi chẩn đoán, bài thuốc và quyết định điều trị phải được bác sĩ có chuyên môn kiểm tra, phê duyệt.
 
-## Epic 1 — Project Foundation
+## Epic 2 — Database & Data Foundation
 
-- Python 3.13 x64 và PySide6.
-- Cấu trúc phân lớp, dễ mở rộng.
-- SQLite với migration và dữ liệu nền.
-- Cấu hình, logging, xử lý lỗi.
-- Giao diện desktop nền tảng.
-- Kiểm thử tự động và script Windows.
+- SQLite schema phiên bản 2.
+- Bệnh nhân và hồ sơ khám.
+- Dữ liệu Vọng, Văn, Vấn, Thiết.
+- Chứng trạng, hội chứng và bệnh danh.
+- Tạng phủ, kinh lạc, khí huyết, âm dương.
+- Dược liệu, phương thuốc và thành phần.
+- Liều lượng, gia giảm và cách dùng.
+- Chống chỉ định và tương tác.
+- Repository CRUD và validation.
+- Migration, seed và kiểm thử tự động.
 
 ## Chạy trên Windows
 
@@ -29,10 +33,11 @@ pip install -r requirements-dev.txt
 
 SQLite được tạo tại `%LOCALAPPDATA%\TCMExpert\data\tcm_expert.db`.
 
+Không commit file cơ sở dữ liệu bệnh nhân lên GitHub.
+
 ## Nguyên tắc an toàn
 
 - Đây là công cụ hỗ trợ, không tự điều trị.
 - Bài thuốc chỉ mang tính tham khảo.
 - Bác sĩ chịu trách nhiệm phê duyệt cuối cùng.
 - Dữ liệu bệnh nhân cần được bảo vệ.
-

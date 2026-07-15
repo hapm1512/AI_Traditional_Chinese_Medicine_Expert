@@ -1,6 +1,6 @@
+import os
 from dataclasses import dataclass
 from pathlib import Path
-import os
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,4 +27,3 @@ class AppPaths:
     def ensure(self) -> None:
         self.data.mkdir(parents=True, exist_ok=True)
         self.logs.mkdir(parents=True, exist_ok=True)
-
