@@ -222,6 +222,71 @@ class ConsultationRepository:
             connection.execute("DELETE FROM diagnostic_entries WHERE id=?", (entry_id,))
             self.database.audit(connection, "delete", "diagnostic_entry", entry_id)
 
+    def listening_smelling_findings(self, consultation_id: int) -> list[dict[str, Any]]:
+        self.get(consultation_id)
+        with self.database.transaction() as connection:
+            rows = connection.execute(
+                """SELECT * FROM listening_smelling_findings
+                WHERE consultation_id=? ORDER BY recorded_at DESC, id DESC""",
+                (consultation_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def add_listening_smelling_finding(
+        self, consultation_id: int, values: Mapping[str, Any]
+    ) -> int:
+        data = self._validate_listening_smelling(values)
+        self.get(consultation_id)
+        columns = ", ".join(("consultation_id", *data.keys()))
+        placeholders = ", ".join("?" for _ in range(len(data) + 1))
+        with self.database.transaction() as connection:
+            cursor = connection.execute(
+                f"INSERT INTO listening_smelling_findings ({columns}) VALUES ({placeholders})",
+                (consultation_id, *data.values()),
+            )
+            self.database.audit(
+                connection, "create", "listening_smelling_finding", cursor.lastrowid
+            )
+        return int(cursor.lastrowid)
+
+    def delete_listening_smelling_finding(self, finding_id: int) -> None:
+        with self.database.transaction() as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM listening_smelling_findings WHERE id=?", (finding_id,)
+            ).fetchone()
+            if not exists:
+                raise LookupError("Không tìm thấy kết quả Văn chẩn")
+            connection.execute(
+                "DELETE FROM listening_smelling_findings WHERE id=?", (finding_id,)
+            )
+            self.database.audit(
+                connection, "delete", "listening_smelling_finding", finding_id
+            )
+
+    @staticmethod
+    def _validate_listening_smelling(values: Mapping[str, Any]) -> dict[str, Any]:
+        finding_types = {
+            "voice", "breathing", "cough", "sputum", "hiccup",
+            "pathological_sound", "odor", "other",
+        }
+        severity = int(values.get("severity") or 0)
+        if not 0 <= severity <= 10:
+            raise ValueError("Mức độ phải từ 0 đến 10")
+        return {
+            "finding_type": choice(
+                values.get("finding_type"), "Loại Văn chẩn", finding_types
+            ),
+            "characteristic": required_text(
+                values.get("characteristic"), "Đặc điểm", 500
+            ),
+            "frequency": optional_text(values.get("frequency"), 100),
+            "severity": severity,
+            "duration": optional_text(values.get("duration"), 100),
+            "odor": optional_text(values.get("odor"), 300),
+            "note": optional_text(values.get("note"), 2000),
+            "recorded_by": required_text(values.get("recorded_by"), "Người ghi nhận", 150),
+        }
+
     @classmethod
     def _validate(cls, values: Mapping[str, Any]) -> dict[str, Any]:
         return {

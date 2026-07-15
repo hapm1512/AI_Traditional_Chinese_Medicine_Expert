@@ -255,4 +255,29 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         );
         """,
     ),
+    (
+        3,
+        """
+        CREATE TABLE listening_smelling_findings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            finding_type TEXT NOT NULL CHECK(finding_type IN
+                ('voice','breathing','cough','sputum','hiccup','pathological_sound','odor','other')),
+            characteristic TEXT NOT NULL,
+            frequency TEXT NOT NULL DEFAULT '',
+            severity INTEGER NOT NULL DEFAULT 0 CHECK(severity BETWEEN 0 AND 10),
+            duration TEXT NOT NULL DEFAULT '',
+            odor TEXT NOT NULL DEFAULT '',
+            note TEXT NOT NULL DEFAULT '',
+            recorded_by TEXT NOT NULL,
+            recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_listening_smelling_consultation
+            ON listening_smelling_findings(consultation_id);
+        CREATE INDEX idx_listening_smelling_type
+            ON listening_smelling_findings(finding_type);
+        """,
+    ),
 )

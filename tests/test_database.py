@@ -32,6 +32,7 @@ EXPECTED_TABLES = {
     "herb_interactions",
     "formula_recommendations",
     "audit_log",
+    "listening_smelling_findings",
 }
 
 
@@ -53,7 +54,7 @@ def test_database_initialization_is_idempotent(database):
         versions = [row[0] for row in connection.execute("SELECT version FROM schema_version")]
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
     assert EXPECTED_TABLES <= tables
-    assert versions == [1, 2]
+    assert versions == [1, 2, 3]
     assert integrity == "ok"
 
 
@@ -68,7 +69,7 @@ def test_migrates_epic_one_database(tmp_path):
 
     DatabaseManager(path).initialize()
     with sqlite3.connect(path) as migrated:
-        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 2
+        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 3
         columns = {row[1] for row in migrated.execute("PRAGMA table_info(patients)")}
     assert {"allergies", "deleted_at", "identity_number"} <= columns
 
@@ -167,3 +168,40 @@ def test_seed_reference_data_and_formula_disclaimer(database):
 def test_foreign_keys_are_enforced(database):
     with pytest.raises(sqlite3.IntegrityError), database.transaction() as connection:
         connection.execute("INSERT INTO consultations(patient_id) VALUES(99999)")
+
+
+def test_manual_listening_smelling_workflow(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN005", "full_name": "Nguyễn Thị Epic Năm"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-005")
+    finding_id = repository.add_listening_smelling_finding(
+        visit["id"],
+        {
+            "finding_type": "cough",
+            "characteristic": "Ho khan, tiếng yếu",
+            "frequency": "Từng cơn",
+            "severity": 4,
+            "duration": "3 ngày",
+            "recorded_by": "Y tá Lan",
+        },
+    )
+    rows = repository.listening_smelling_findings(visit["id"])
+    assert rows[0]["id"] == finding_id
+    assert rows[0]["recorded_by"] == "Y tá Lan"
+    repository.delete_listening_smelling_finding(finding_id)
+    assert repository.listening_smelling_findings(visit["id"]) == []
+
+
+def test_listening_smelling_validation(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN006", "full_name": "Nguyễn Văn Kiểm Thử"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-006")
+    with pytest.raises(ValidationError):
+        repository.add_listening_smelling_finding(
+            visit["id"],
+            {"finding_type": "cough", "characteristic": "", "recorded_by": ""},
+        )

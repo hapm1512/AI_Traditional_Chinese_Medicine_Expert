@@ -1,13 +1,24 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-    QMessageBox, QPushButton, QSpinBox, QTabWidget, QTableWidget,
-    QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
+    QComboBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSpinBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
 )
 
 from tcm_expert.database import ConsultationRepository, PatientRepository
 from tcm_expert.database.manager import DatabaseManager
-
 
 METHODS = (
     ("vong", "Vọng chẩn", "Sắc diện, hình thể, lưỡi..."),
@@ -104,12 +115,156 @@ class MethodEditor(QWidget):
         self.refresh()
 
 
+class ListeningSmellingEditor(QWidget):
+    TYPES = (
+        ("voice", "Giọng nói"),
+        ("breathing", "Hơi thở"),
+        ("cough", "Ho"),
+        ("sputum", "Đờm"),
+        ("hiccup", "Nấc"),
+        ("pathological_sound", "Tiếng bệnh lý"),
+        ("odor", "Mùi"),
+        ("other", "Khác"),
+    )
+    CHARACTERISTICS = {
+        "voice": ("Bình thường", "Yếu", "Khàn", "Nhỏ", "Cao", "Đứt quãng"),
+        "breathing": ("Bình thường", "Ngắn", "Gấp", "Yếu", "Khò khè", "Nặng nhọc"),
+        "cough": ("Ho khan", "Ho có đờm", "Ho yếu", "Ho dữ dội", "Ho từng cơn"),
+        "sputum": ("Trắng", "Vàng", "Trong", "Đặc", "Loãng", "Có mùi"),
+        "hiccup": ("Nhẹ", "Mạnh", "Liên tục", "Từng cơn"),
+        "pathological_sound": ("Khò khè", "Thở rít", "Rên", "Ợ", "Tiếng khác"),
+        "odor": ("Không bất thường", "Hôi", "Chua", "Tanh", "Khét", "Khác"),
+        "other": ("Khác",),
+    }
+
+    def __init__(self, repository: ConsultationRepository):
+        super().__init__()
+        self.repository = repository
+        self.consultation_id: int | None = None
+        layout = QVBoxLayout(self)
+        hint = QLabel("Y tá nhập thủ công; chưa sử dụng micro hoặc thiết bị ngoại vi.")
+        hint.setObjectName("subtitle")
+        layout.addWidget(hint)
+        form = QFormLayout()
+        self.finding_type = QComboBox()
+        for key, label in self.TYPES:
+            self.finding_type.addItem(label, key)
+        self.finding_type.currentIndexChanged.connect(self._load_characteristics)
+        self.characteristic = QComboBox()
+        self.characteristic.setEditable(True)
+        self.frequency = QComboBox()
+        self.frequency.setEditable(True)
+        self.frequency.addItems(
+            ("", "Một lần", "Thỉnh thoảng", "Từng cơn", "Thường xuyên", "Liên tục")
+        )
+        self.severity = QSpinBox()
+        self.severity.setRange(0, 10)
+        self.duration = QLineEdit()
+        self.duration.setPlaceholderText("Ví dụ: 3 ngày")
+        self.odor = QLineEdit()
+        self.odor.setPlaceholderText("Mùi liên quan nếu có")
+        self.recorded_by = QLineEdit()
+        self.recorded_by.setPlaceholderText("Họ tên y tá/người nhập")
+        self.note = QTextEdit()
+        self.note.setMaximumHeight(58)
+        form.addRow("Loại *", self.finding_type)
+        form.addRow("Đặc điểm *", self.characteristic)
+        form.addRow("Tần suất", self.frequency)
+        form.addRow("Mức độ 0–10", self.severity)
+        form.addRow("Thời gian", self.duration)
+        form.addRow("Mùi", self.odor)
+        form.addRow("Người ghi nhận *", self.recorded_by)
+        form.addRow("Ghi chú", self.note)
+        layout.addLayout(form)
+        buttons = QHBoxLayout()
+        add = QPushButton("Lưu Văn chẩn")
+        add.clicked.connect(self.add_finding)
+        remove = QPushButton("Xóa mục chọn")
+        remove.clicked.connect(self.remove_finding)
+        buttons.addWidget(add)
+        buttons.addWidget(remove)
+        buttons.addStretch()
+        layout.addLayout(buttons)
+        self.table = QTableWidget(0, 7)
+        self.table.setHorizontalHeaderLabels(
+            ("Loại", "Đặc điểm", "Tần suất", "Mức độ", "Thời gian", "Người nhập", "Thời điểm")
+        )
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        layout.addWidget(self.table, 1)
+        self._load_characteristics()
+
+    def _load_characteristics(self) -> None:
+        current = self.characteristic.currentText() if self.characteristic.count() else ""
+        self.characteristic.clear()
+        self.characteristic.addItems(self.CHARACTERISTICS[self.finding_type.currentData()])
+        if current:
+            self.characteristic.setEditText(current)
+
+    def set_consultation(self, consultation_id: int | None) -> None:
+        self.consultation_id = consultation_id
+        self.refresh()
+
+    def refresh(self) -> None:
+        rows = [] if self.consultation_id is None else (
+            self.repository.listening_smelling_findings(self.consultation_id)
+        )
+        labels = dict(self.TYPES)
+        self.table.setRowCount(len(rows))
+        for row_index, entry in enumerate(rows):
+            values = (
+                labels.get(entry["finding_type"], entry["finding_type"]),
+                entry["characteristic"], entry["frequency"], entry["severity"],
+                entry["duration"], entry["recorded_by"], entry["recorded_at"],
+            )
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value or ""))
+                item.setData(Qt.ItemDataRole.UserRole, entry["id"])
+                self.table.setItem(row_index, column, item)
+
+    def add_finding(self) -> None:
+        if self.consultation_id is None:
+            QMessageBox.information(self, "Chưa chọn", "Hãy chọn hồ sơ khám trước.")
+            return
+        try:
+            self.repository.add_listening_smelling_finding(
+                self.consultation_id,
+                {
+                    "finding_type": self.finding_type.currentData(),
+                    "characteristic": self.characteristic.currentText(),
+                    "frequency": self.frequency.currentText(),
+                    "severity": self.severity.value(),
+                    "duration": self.duration.text(),
+                    "odor": self.odor.text(),
+                    "recorded_by": self.recorded_by.text(),
+                    "note": self.note.toPlainText(),
+                },
+            )
+            self.severity.setValue(0)
+            self.duration.clear()
+            self.odor.clear()
+            self.note.clear()
+            self.refresh()
+        except Exception as error:
+            QMessageBox.warning(self, "Không thể lưu", str(error))
+
+    def remove_finding(self) -> None:
+        items = self.table.selectedItems()
+        if not items:
+            return
+        self.repository.delete_listening_smelling_finding(
+            int(items[0].data(Qt.ItemDataRole.UserRole))
+        )
+        self.refresh()
+
+
 class DiagnosisPage(QWidget):
     def __init__(self, database: DatabaseManager):
         super().__init__()
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
-        self.editors: list[MethodEditor] = []
+        self.editors: list[MethodEditor | ListeningSmellingEditor] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
         title = QLabel("Hồ sơ khám và Tứ chẩn")
@@ -148,7 +303,11 @@ class DiagnosisPage(QWidget):
         layout.addWidget(self.summary)
         tabs = QTabWidget()
         for method, name, hint in METHODS:
-            editor = MethodEditor(self.consultations, method, hint)
+            editor = (
+                ListeningSmellingEditor(self.consultations)
+                if method == "van"
+                else MethodEditor(self.consultations, method, hint)
+            )
             self.editors.append(editor)
             tabs.addTab(editor, name)
         layout.addWidget(tabs, 1)

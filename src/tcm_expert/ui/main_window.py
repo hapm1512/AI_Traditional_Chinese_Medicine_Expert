@@ -11,8 +11,8 @@ from PySide6.QtWidgets import (
 )
 
 from tcm_expert.database.manager import DatabaseManager
-from tcm_expert.ui.patient_page import PatientPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
+from tcm_expert.ui.patient_page import PatientPage
 
 
 class MainWindow(QMainWindow):
@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        layout.addWidget(QLabel("Phiên bản 0.4.0"))
+        layout.addWidget(QLabel("Phiên bản 0.5.0"))
         return side
 
     def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:

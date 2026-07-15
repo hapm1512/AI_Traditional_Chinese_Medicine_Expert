@@ -1,6 +1,6 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 0.4.0
+## Phiên bản 0.5.0
 
 - Quản lý danh sách bệnh nhân.
 - Thêm, sửa, ẩn và tìm kiếm.
@@ -9,6 +9,17 @@
 - Nhập liệu Vọng, Văn, Vấn, Thiết.
 - Phân loại và chấm mức độ phát hiện.
 - Lưu nhận định sơ bộ và trạng thái duyệt.
+- Nhập liệu Văn chẩn thủ công chuẩn hóa.
+- Lưu người ghi nhận và thời gian.
+
+## Epic 5 — Văn chẩn thủ công
+
+- Y tá nhập giọng nói và hơi thở.
+- Ghi nhận ho, đờm, nấc và âm bệnh lý.
+- Ghi nhận mùi và đặc điểm liên quan.
+- Chuẩn hóa loại, tần suất, thời gian, mức độ.
+- Chưa thu âm hoặc kết nối micro.
+- Kiến trúc sẵn sàng tích hợp ngoại vi sau RC.
 
 ## Epic 4 — Hồ sơ khám và Tứ chẩn
 
