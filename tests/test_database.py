@@ -34,6 +34,8 @@ EXPECTED_TABLES = {
     "audit_log",
     "listening_smelling_findings",
     "inquiry_findings",
+    "pulse_findings",
+    "palpation_findings",
 }
 
 
@@ -55,7 +57,7 @@ def test_database_initialization_is_idempotent(database):
         versions = [row[0] for row in connection.execute("SELECT version FROM schema_version")]
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
     assert EXPECTED_TABLES <= tables
-    assert versions == [1, 2, 3, 4]
+    assert versions == [1, 2, 3, 4, 5]
     assert integrity == "ok"
 
 
@@ -70,7 +72,7 @@ def test_migrates_epic_one_database(tmp_path):
 
     DatabaseManager(path).initialize()
     with sqlite3.connect(path) as migrated:
-        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 4
+        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 5
         columns = {row[1] for row in migrated.execute("PRAGMA table_info(patients)")}
     assert {"allergies", "deleted_at", "identity_number"} <= columns
 
@@ -242,3 +244,48 @@ def test_inquiry_requires_recorder(database):
     visit = repository.create(patient["id"], "K-2026-008")
     with pytest.raises(ValidationError):
         repository.save_inquiry_finding(visit["id"], {"sleep": "Mất ngủ"})
+
+
+def test_structured_pulse_and_palpation(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN009", "full_name": "Bệnh nhân Thiết chẩn"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-009")
+    pulse = repository.save_pulse_finding(visit["id"], {
+        "side": "left", "position": "cun", "depth": "Phù", "rate": "Sác",
+        "strength": "Hữu lực", "rhythm": "Đều", "quality": "Huyền sác",
+        "bpm": 92, "recorded_by": "Bác sĩ An",
+    })
+    assert pulse["quality"] == "Huyền sác"
+    repository.save_pulse_finding(visit["id"], {
+        "side": "left", "position": "cun", "quality": "Huyền",
+        "recorded_by": "Bác sĩ An",
+    })
+    assert len(repository.pulse_findings(visit["id"])) == 1
+    finding_id = repository.add_palpation_finding(visit["id"], {
+        "body_area": "Hạ sườn phải", "finding_type": "tenderness",
+        "characteristic": "Ấn đau nhẹ", "severity": 3, "recorded_by": "Y tá Lan",
+    })
+    assert repository.palpation_findings(visit["id"])[0]["severity"] == 3
+    repository.delete_palpation_finding(finding_id)
+    assert repository.palpation_findings(visit["id"]) == []
+    repository.delete_pulse_findings(visit["id"])
+    assert repository.pulse_findings(visit["id"]) == []
+
+
+def test_pulse_and_palpation_validation(database):
+    patient = PatientRepository(database).create(
+        {"code": "BN010", "full_name": "Kiểm thử Thiết chẩn"}
+    )
+    repository = ConsultationRepository(database)
+    visit = repository.create(patient["id"], "K-2026-010")
+    with pytest.raises((ValidationError, ValueError)):
+        repository.save_pulse_finding(visit["id"], {
+            "side": "left", "position": "cun", "quality": "", "recorded_by": "",
+        })
+    with pytest.raises((ValidationError, ValueError)):
+        repository.add_palpation_finding(visit["id"], {
+            "body_area": "Bụng", "finding_type": "invalid",
+            "characteristic": "Đau", "recorded_by": "Bác sĩ An",
+        })

@@ -1,6 +1,6 @@
 # AI Traditional Chinese Medicine Expert
 
-## Phiên bản 0.6.0
+## Phiên bản 0.7.0
 
 - Quản lý danh sách bệnh nhân.
 - Thêm, sửa, ẩn và tìm kiếm.
@@ -11,6 +11,16 @@
 - Lưu nhận định sơ bộ và trạng thái duyệt.
 - Nhập liệu Văn chẩn thủ công chuẩn hóa.
 - Lưu người ghi nhận và thời gian.
+
+## Epic 7 — Thiết chẩn
+
+- Nhập mạch trái, phải theo Thốn–Quan–Xích.
+- Ghi độ sâu, tốc độ, lực và nhịp.
+- Ghi mạch tượng và số nhịp mỗi phút.
+- Nhập xúc chẩn theo vùng cơ thể.
+- Ghi nhiệt độ, đau, khối, da và bụng.
+- Lưu người ghi nhận và thời điểm.
+- Chưa kết nối thiết bị đo mạch ngoại vi.
 
 ## Epic 6 — Vấn chẩn
 

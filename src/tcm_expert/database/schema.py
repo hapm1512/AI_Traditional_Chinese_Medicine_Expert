@@ -310,4 +310,43 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
             ON inquiry_findings(consultation_id);
         """,
     ),
+    (
+        5,
+        """
+        CREATE TABLE pulse_findings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            side TEXT NOT NULL CHECK(side IN ('left','right')),
+            position TEXT NOT NULL CHECK(position IN ('cun','guan','chi')),
+            depth TEXT NOT NULL DEFAULT '',
+            rate TEXT NOT NULL DEFAULT '',
+            strength TEXT NOT NULL DEFAULT '',
+            rhythm TEXT NOT NULL DEFAULT '',
+            quality TEXT NOT NULL DEFAULT '',
+            bpm INTEGER CHECK(bpm IS NULL OR bpm BETWEEN 20 AND 250),
+            note TEXT NOT NULL DEFAULT '',
+            recorded_by TEXT NOT NULL,
+            recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+            UNIQUE(consultation_id, side, position)
+        );
+        CREATE INDEX idx_pulse_consultation ON pulse_findings(consultation_id);
+
+        CREATE TABLE palpation_findings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            body_area TEXT NOT NULL,
+            finding_type TEXT NOT NULL CHECK(finding_type IN
+                ('temperature','tenderness','mass','skin','abdomen','acupoint','other')),
+            characteristic TEXT NOT NULL,
+            severity INTEGER NOT NULL DEFAULT 0 CHECK(severity BETWEEN 0 AND 10),
+            note TEXT NOT NULL DEFAULT '',
+            recorded_by TEXT NOT NULL,
+            recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_palpation_consultation ON palpation_findings(consultation_id);
+        """,
+    ),
 )

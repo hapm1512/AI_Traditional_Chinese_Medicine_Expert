@@ -344,12 +344,170 @@ class InquiryEditor(QWidget):
         self.refresh()
 
 
+class PalpationEditor(QWidget):
+    SIDES = (("left", "Trái"), ("right", "Phải"))
+    POSITIONS = (("cun", "Thốn"), ("guan", "Quan"), ("chi", "Xích"))
+    TYPES = (
+        ("temperature", "Nhiệt độ"), ("tenderness", "Đau khi ấn"),
+        ("mass", "Khối"), ("skin", "Da/cơ"), ("abdomen", "Bụng"),
+        ("acupoint", "Du huyệt"), ("other", "Khác"),
+    )
+
+    def __init__(self, repository: ConsultationRepository):
+        super().__init__()
+        self.repository = repository
+        self.consultation_id: int | None = None
+        outer = QVBoxLayout(self)
+        hint = QLabel("Nhập mạch và xúc chẩn thủ công; chưa kết nối thiết bị ngoại vi.")
+        hint.setObjectName("subtitle")
+        outer.addWidget(hint)
+        pulse_box = QGroupBox("Mạch chẩn — Thốn, Quan, Xích")
+        pulse_form = QFormLayout(pulse_box)
+        row = QHBoxLayout()
+        self.side = QComboBox()
+        self.position = QComboBox()
+        for key, label in self.SIDES:
+            self.side.addItem(label, key)
+        for key, label in self.POSITIONS:
+            self.position.addItem(label, key)
+        row.addWidget(self.side)
+        row.addWidget(self.position)
+        pulse_form.addRow("Bộ vị *", row)
+        self.depth = QComboBox(); self.depth.setEditable(True)
+        self.depth.addItems(("", "Phù", "Trung", "Trầm"))
+        self.rate = QComboBox(); self.rate.setEditable(True)
+        self.rate.addItems(("", "Trì", "Bình", "Sác"))
+        self.strength = QComboBox(); self.strength.setEditable(True)
+        self.strength.addItems(("", "Hữu lực", "Vô lực"))
+        self.rhythm = QComboBox(); self.rhythm.setEditable(True)
+        self.rhythm.addItems(("", "Đều", "Xúc", "Kết", "Đại"))
+        self.quality = QLineEdit()
+        self.quality.setPlaceholderText("Ví dụ: Huyền, Hoạt, Sáp, Tế...")
+        self.bpm = QSpinBox(); self.bpm.setRange(0, 250); self.bpm.setSpecialValueText("Chưa đo")
+        self.pulse_note = QLineEdit()
+        self.pulse_recorder = QLineEdit()
+        self.pulse_recorder.setPlaceholderText("Họ tên bác sĩ/người bắt mạch")
+        pulse_form.addRow("Độ sâu", self.depth)
+        pulse_form.addRow("Tốc độ", self.rate)
+        pulse_form.addRow("Lực mạch", self.strength)
+        pulse_form.addRow("Nhịp", self.rhythm)
+        pulse_form.addRow("Mạch tượng *", self.quality)
+        pulse_form.addRow("Nhịp/phút", self.bpm)
+        pulse_form.addRow("Ghi chú", self.pulse_note)
+        pulse_form.addRow("Người bắt mạch *", self.pulse_recorder)
+        pulse_buttons = QHBoxLayout()
+        save_pulse = QPushButton("Lưu bộ vị")
+        save_pulse.clicked.connect(self.save_pulse)
+        clear_pulse = QPushButton("Xóa toàn bộ mạch")
+        clear_pulse.clicked.connect(self.clear_pulses)
+        pulse_buttons.addWidget(save_pulse); pulse_buttons.addWidget(clear_pulse); pulse_buttons.addStretch()
+        pulse_form.addRow(pulse_buttons)
+        self.pulse_table = QTableWidget(0, 8)
+        self.pulse_table.setHorizontalHeaderLabels(
+            ("Bên", "Bộ vị", "Độ sâu", "Tốc độ", "Lực", "Nhịp", "Mạch tượng", "Nhịp/phút")
+        )
+        self.pulse_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.pulse_table.horizontalHeader().setStretchLastSection(True)
+        pulse_form.addRow(self.pulse_table)
+        outer.addWidget(pulse_box)
+
+        touch_box = QGroupBox("Xúc chẩn — sờ nắn")
+        touch_form = QFormLayout(touch_box)
+        self.body_area = QLineEdit(); self.body_area.setPlaceholderText("Ví dụ: Hạ sườn phải")
+        self.touch_type = QComboBox()
+        for key, label in self.TYPES:
+            self.touch_type.addItem(label, key)
+        self.characteristic = QLineEdit()
+        self.characteristic.setPlaceholderText("Nóng/lạnh, mềm/cứng, đau, kích thước...")
+        self.touch_severity = QSpinBox(); self.touch_severity.setRange(0, 10)
+        self.touch_note = QLineEdit()
+        self.touch_recorder = QLineEdit(); self.touch_recorder.setPlaceholderText("Họ tên người ghi nhận")
+        touch_form.addRow("Vùng sờ nắn *", self.body_area)
+        touch_form.addRow("Loại *", self.touch_type)
+        touch_form.addRow("Đặc điểm *", self.characteristic)
+        touch_form.addRow("Mức độ 0–10", self.touch_severity)
+        touch_form.addRow("Ghi chú", self.touch_note)
+        touch_form.addRow("Người ghi nhận *", self.touch_recorder)
+        buttons = QHBoxLayout()
+        add = QPushButton("Thêm xúc chẩn"); add.clicked.connect(self.add_palpation)
+        remove = QPushButton("Xóa mục chọn"); remove.clicked.connect(self.remove_palpation)
+        buttons.addWidget(add); buttons.addWidget(remove); buttons.addStretch()
+        touch_form.addRow(buttons)
+        self.touch_table = QTableWidget(0, 5)
+        self.touch_table.setHorizontalHeaderLabels(("Vùng", "Loại", "Đặc điểm", "Mức độ", "Người nhập"))
+        self.touch_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.touch_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.touch_table.horizontalHeader().setStretchLastSection(True)
+        touch_form.addRow(self.touch_table)
+        outer.addWidget(touch_box)
+
+    def set_consultation(self, consultation_id: int | None) -> None:
+        self.consultation_id = consultation_id
+        self.setEnabled(consultation_id is not None)
+        self.refresh()
+
+    def refresh(self) -> None:
+        pulses = [] if self.consultation_id is None else self.repository.pulse_findings(self.consultation_id)
+        sides, positions = dict(self.SIDES), dict(self.POSITIONS)
+        self.pulse_table.setRowCount(len(pulses))
+        for row_index, entry in enumerate(pulses):
+            values = (sides[entry["side"]], positions[entry["position"]], entry["depth"],
+                      entry["rate"], entry["strength"], entry["rhythm"], entry["quality"], entry["bpm"])
+            for column, value in enumerate(values):
+                self.pulse_table.setItem(row_index, column, QTableWidgetItem(str(value or "")))
+        touches = [] if self.consultation_id is None else self.repository.palpation_findings(self.consultation_id)
+        labels = dict(self.TYPES)
+        self.touch_table.setRowCount(len(touches))
+        for row_index, entry in enumerate(touches):
+            values = (entry["body_area"], labels.get(entry["finding_type"], entry["finding_type"]),
+                      entry["characteristic"], entry["severity"], entry["recorded_by"])
+            for column, value in enumerate(values):
+                item = QTableWidgetItem(str(value or "")); item.setData(Qt.ItemDataRole.UserRole, entry["id"])
+                self.touch_table.setItem(row_index, column, item)
+
+    def save_pulse(self) -> None:
+        if self.consultation_id is None: return
+        try:
+            self.repository.save_pulse_finding(self.consultation_id, {
+                "side": self.side.currentData(), "position": self.position.currentData(),
+                "depth": self.depth.currentText(), "rate": self.rate.currentText(),
+                "strength": self.strength.currentText(), "rhythm": self.rhythm.currentText(),
+                "quality": self.quality.text(), "bpm": self.bpm.value(),
+                "note": self.pulse_note.text(), "recorded_by": self.pulse_recorder.text(),
+            })
+            self.quality.clear(); self.pulse_note.clear(); self.refresh()
+        except Exception as error:
+            QMessageBox.warning(self, "Không thể lưu", str(error))
+
+    def clear_pulses(self) -> None:
+        if self.consultation_id is not None:
+            self.repository.delete_pulse_findings(self.consultation_id); self.refresh()
+
+    def add_palpation(self) -> None:
+        if self.consultation_id is None: return
+        try:
+            self.repository.add_palpation_finding(self.consultation_id, {
+                "body_area": self.body_area.text(), "finding_type": self.touch_type.currentData(),
+                "characteristic": self.characteristic.text(), "severity": self.touch_severity.value(),
+                "note": self.touch_note.text(), "recorded_by": self.touch_recorder.text(),
+            })
+            self.body_area.clear(); self.characteristic.clear(); self.touch_note.clear(); self.refresh()
+        except Exception as error:
+            QMessageBox.warning(self, "Không thể lưu", str(error))
+
+    def remove_palpation(self) -> None:
+        items = self.touch_table.selectedItems()
+        if items:
+            self.repository.delete_palpation_finding(int(items[0].data(Qt.ItemDataRole.UserRole)))
+            self.refresh()
+
+
 class DiagnosisPage(QWidget):
     def __init__(self, database: DatabaseManager):
         super().__init__()
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
-        self.editors: list[MethodEditor | ListeningSmellingEditor | InquiryEditor] = []
+        self.editors: list[MethodEditor | ListeningSmellingEditor | InquiryEditor | PalpationEditor] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
         title = QLabel("Hồ sơ khám và Tứ chẩn")
@@ -393,6 +551,8 @@ class DiagnosisPage(QWidget):
                 if method == "van"
                 else InquiryEditor(self.consultations)
                 if method == "van_hoi"
+                else PalpationEditor(self.consultations)
+                if method == "thiet"
                 else MethodEditor(self.consultations, method, hint)
             )
             self.editors.append(editor)

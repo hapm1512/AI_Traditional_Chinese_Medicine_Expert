@@ -308,6 +308,80 @@ class ConsultationRepository:
             )
             self.database.audit(connection, "delete", "inquiry_finding", row["id"])
 
+    def pulse_findings(self, consultation_id: int) -> list[dict[str, Any]]:
+        self.get(consultation_id)
+        with self.database.transaction() as connection:
+            rows = connection.execute(
+                """SELECT * FROM pulse_findings WHERE consultation_id=?
+                ORDER BY side, CASE position WHEN 'cun' THEN 1 WHEN 'guan' THEN 2 ELSE 3 END""",
+                (consultation_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def save_pulse_finding(
+        self, consultation_id: int, values: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        data = self._validate_pulse(values)
+        self.get(consultation_id)
+        columns = ", ".join(data)
+        placeholders = ", ".join("?" for _ in data)
+        updates = ", ".join(f"{column}=excluded.{column}" for column in data)
+        with self.database.transaction() as connection:
+            connection.execute(
+                f"""INSERT INTO pulse_findings (consultation_id, {columns})
+                VALUES (?, {placeholders}) ON CONFLICT(consultation_id, side, position)
+                DO UPDATE SET {updates}, updated_at=CURRENT_TIMESTAMP""",
+                (consultation_id, *data.values()),
+            )
+            row = connection.execute(
+                """SELECT id FROM pulse_findings
+                WHERE consultation_id=? AND side=? AND position=?""",
+                (consultation_id, data["side"], data["position"]),
+            ).fetchone()
+            self.database.audit(connection, "save", "pulse_finding", row["id"])
+        return next(
+            row for row in self.pulse_findings(consultation_id)
+            if row["side"] == data["side"] and row["position"] == data["position"]
+        )
+
+    def delete_pulse_findings(self, consultation_id: int) -> None:
+        self.get(consultation_id)
+        with self.database.transaction() as connection:
+            connection.execute("DELETE FROM pulse_findings WHERE consultation_id=?", (consultation_id,))
+            self.database.audit(connection, "delete", "pulse_findings", consultation_id)
+
+    def palpation_findings(self, consultation_id: int) -> list[dict[str, Any]]:
+        self.get(consultation_id)
+        with self.database.transaction() as connection:
+            rows = connection.execute(
+                "SELECT * FROM palpation_findings WHERE consultation_id=? ORDER BY id DESC",
+                (consultation_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def add_palpation_finding(self, consultation_id: int, values: Mapping[str, Any]) -> int:
+        data = self._validate_palpation(values)
+        self.get(consultation_id)
+        columns = ", ".join(("consultation_id", *data.keys()))
+        placeholders = ", ".join("?" for _ in range(len(data) + 1))
+        with self.database.transaction() as connection:
+            cursor = connection.execute(
+                f"INSERT INTO palpation_findings ({columns}) VALUES ({placeholders})",
+                (consultation_id, *data.values()),
+            )
+            self.database.audit(connection, "create", "palpation_finding", cursor.lastrowid)
+        return int(cursor.lastrowid)
+
+    def delete_palpation_finding(self, finding_id: int) -> None:
+        with self.database.transaction() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM palpation_findings WHERE id=?", (finding_id,)
+            ).fetchone()
+            if row is None:
+                raise LookupError("Không tìm thấy kết quả xúc chẩn")
+            connection.execute("DELETE FROM palpation_findings WHERE id=?", (finding_id,))
+            self.database.audit(connection, "delete", "palpation_finding", finding_id)
+
     @staticmethod
     def _validate_listening_smelling(values: Mapping[str, Any]) -> dict[str, Any]:
         finding_types = {
@@ -345,6 +419,42 @@ class ConsultationRepository:
             values.get("recorded_by"), "Người hỏi", 150
         )
         return data
+
+    @staticmethod
+    def _validate_pulse(values: Mapping[str, Any]) -> dict[str, Any]:
+        bpm_value = values.get("bpm")
+        bpm = None if bpm_value in (None, "", 0) else int(bpm_value)
+        if bpm is not None and not 20 <= bpm <= 250:
+            raise ValueError("Nhịp mạch phải từ 20 đến 250")
+        return {
+            "side": choice(values.get("side"), "Bên mạch", {"left", "right"}),
+            "position": choice(values.get("position"), "Bộ vị", {"cun", "guan", "chi"}),
+            "depth": optional_text(values.get("depth"), 100),
+            "rate": optional_text(values.get("rate"), 100),
+            "strength": optional_text(values.get("strength"), 100),
+            "rhythm": optional_text(values.get("rhythm"), 100),
+            "quality": required_text(values.get("quality"), "Mạch tượng", 300),
+            "bpm": bpm,
+            "note": optional_text(values.get("note"), 1000),
+            "recorded_by": required_text(values.get("recorded_by"), "Người bắt mạch", 150),
+        }
+
+    @staticmethod
+    def _validate_palpation(values: Mapping[str, Any]) -> dict[str, Any]:
+        severity = int(values.get("severity") or 0)
+        if not 0 <= severity <= 10:
+            raise ValueError("Mức độ phải từ 0 đến 10")
+        return {
+            "body_area": required_text(values.get("body_area"), "Vùng sờ nắn", 200),
+            "finding_type": choice(
+                values.get("finding_type"), "Loại xúc chẩn",
+                {"temperature", "tenderness", "mass", "skin", "abdomen", "acupoint", "other"},
+            ),
+            "characteristic": required_text(values.get("characteristic"), "Đặc điểm", 1000),
+            "severity": severity,
+            "note": optional_text(values.get("note"), 1000),
+            "recorded_by": required_text(values.get("recorded_by"), "Người ghi nhận", 150),
+        }
 
     @classmethod
     def _validate(cls, values: Mapping[str, Any]) -> dict[str, Any]:
