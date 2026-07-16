@@ -1,5 +1,18 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 21 — Treatment Follow-up & Outcomes 2.6
+
+- Theo dõi điều trị theo từng hồ sơ khám.
+- Ghi ngày tái khám và trạng thái thực tế.
+- So sánh điểm triệu chứng trước và sau.
+- Ghi hiệu quả và mức tuân thủ điều trị.
+- Ghi nhận phản ứng bất lợi riêng biệt.
+- Đồng bộ trạng thái theo dõi bệnh nhân.
+- Bắt buộc bác sĩ ghi nhận kết quả.
+- Lưu audit log cho mọi lần theo dõi.
+- AI không tự đánh giá hiệu quả điều trị.
+- Phiên bản `2.6.0`.
+
 ## Epic 20 — AI Safety & Validation 2.5
 
 - Kiểm định độ đầy đủ dữ liệu trước khi gọi AI.
@@ -283,4 +296,3 @@ Không commit file cơ sở dữ liệu bệnh nhân lên GitHub.
 - Bài thuốc chỉ mang tính tham khảo.
 - Bác sĩ chịu trách nhiệm phê duyệt cuối cùng.
 - Dữ liệu bệnh nhân cần được bảo vệ.
-

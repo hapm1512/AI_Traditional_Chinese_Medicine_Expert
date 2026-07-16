@@ -561,4 +561,28 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_clinical_report_type
             ON clinical_decision_reports(consultation_id,report_type,created_at DESC);
     """),
+    (15, """
+        CREATE TABLE treatment_followups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            followup_date TEXT NOT NULL,
+            treatment_status TEXT NOT NULL DEFAULT 'monitoring'
+                CHECK(treatment_status IN ('improved','stable','worsened','monitoring','completed')),
+            symptom_score_before INTEGER NOT NULL DEFAULT 0
+                CHECK(symptom_score_before BETWEEN 0 AND 10),
+            symptom_score_after INTEGER NOT NULL DEFAULT 0
+                CHECK(symptom_score_after BETWEEN 0 AND 10),
+            effectiveness TEXT NOT NULL DEFAULT 'not_assessed'
+                CHECK(effectiveness IN ('good','partial','none','not_assessed')),
+            adverse_reactions TEXT NOT NULL DEFAULT '',
+            adherence TEXT NOT NULL DEFAULT '',
+            doctor_note TEXT NOT NULL DEFAULT '',
+            reviewed_by TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_treatment_followup_consultation
+            ON treatment_followups(consultation_id,followup_date DESC,id DESC);
+    """),
 )

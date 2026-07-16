@@ -17,6 +17,7 @@ from tcm_expert.ui.audio_page import AudioPage
 from tcm_expert.ui.clinical_support_page import ClinicalSupportPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
 from tcm_expert.ui.formula_page import FormulaPage
+from tcm_expert.ui.followup_page import FollowupPage
 from tcm_expert.ui.materia_medica_page import MateriaMedicaPage
 from tcm_expert.ui.patient_page import PatientPage
 from tcm_expert.ui.prescription_page import PrescriptionPage
@@ -50,6 +51,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(FormulaPage(database))
         self.pages.addWidget(PrescriptionPage(database))
         self.pages.addWidget(ClinicalSupportPage(database))
+        self.pages.addWidget(FollowupPage(database))
         self.pages.addWidget(SettingsPage(database))
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
@@ -77,6 +79,7 @@ class MainWindow(QMainWindow):
                 "Bài thuốc tham khảo",
                 "Đơn thuốc bác sĩ",
                 "Hỗ trợ quyết định",
+                "Theo dõi điều trị",
                 "Cài đặt",
             )
         ):
