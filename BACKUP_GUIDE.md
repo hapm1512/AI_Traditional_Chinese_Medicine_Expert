@@ -24,3 +24,13 @@
 6. Chạy kiểm tra cơ sở dữ liệu.
 
 Không phục hồi khi ứng dụng đang chạy.
+# Sao lưu và phục hồi — Epic 28
+
+- Đăng nhập bằng tài khoản quản trị.
+- Mở `Sao lưu và phục hồi`.
+- Chọn `Tạo bản sao lưu`.
+- Chọn vị trí lưu tệp `.db`.
+- Dùng `Phục hồi từ tệp` khi cần.
+- Kiểm tra thông tin trước xác nhận.
+- Ứng dụng tự sao lưu dữ liệu hiện tại.
+- Khởi động lại sau khi phục hồi.

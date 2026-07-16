@@ -35,6 +35,7 @@ from tcm_expert.security import UserSession, set_current_user
 from tcm_expert.ui.login_dialog import ChangePasswordDialog, LoginDialog
 from tcm_expert.ui.user_management_page import UserManagementPage
 from tcm_expert.ui.audit_log_page import AuditLogPage
+from tcm_expert.ui.backup_page import BackupPage
 
 
 class AppointmentAlertDialog(QDialog):
@@ -151,6 +152,9 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(SettingsPage(database))
         self.pages.addWidget(UserManagementPage(database))
         self.pages.addWidget(AuditLogPage(database))
+        self.backup_page = BackupPage(database)
+        self.backup_page.restored.connect(self.close)
+        self.pages.addWidget(self.backup_page)
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
@@ -258,6 +262,7 @@ class MainWindow(QMainWindow):
                 "Cài đặt",
                 "Quản lý người dùng",
                 "Nhật ký hệ thống",
+                "Sao lưu và phục hồi",
             )
         ):
             button = QPushButton(text)
@@ -293,7 +298,7 @@ class MainWindow(QMainWindow):
 
     def apply_permissions(self) -> None:
         allowed = {
-            "admin": set(range(15)),
+            "admin": set(range(16)),
             "doctor": set(range(13)),
             "nurse": {0, 1, 2, 3, 4, 9, 10},
         }[self.session.role]
@@ -306,7 +311,7 @@ class MainWindow(QMainWindow):
 
     def open_page(self, page: int) -> None:
         allowed = {
-            "admin": set(range(15)),
+            "admin": set(range(16)),
             "doctor": set(range(13)),
             "nurse": {0, 1, 2, 3, 4, 9, 10},
         }[self.session.role]

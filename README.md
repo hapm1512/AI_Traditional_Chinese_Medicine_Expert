@@ -1,5 +1,17 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 28 — Sao lưu và phục hồi dữ liệu
+
+- Chỉ quản trị viên được truy cập.
+- Sao lưu SQLite bằng API an toàn.
+- Kiểm tra toàn vẹn trước và sau sao lưu.
+- Xác nhận trước khi phục hồi dữ liệu.
+- Tự tạo bản sao an toàn trước phục hồi.
+- Kiểm tra bảng dữ liệu bắt buộc.
+- Ghi nhật ký sao lưu và phục hồi.
+- Yêu cầu khởi động lại sau phục hồi.
+- Phiên bản Epic 28: `3.3.0`.
+
 ## Epic 27 — Nhật ký hệ thống và truy vết
 
 - Chỉ quản trị viên được xem nhật ký.

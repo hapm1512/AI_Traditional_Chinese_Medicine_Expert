@@ -1,4 +1,6 @@
 import sqlite3
+import os
+import shutil
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
@@ -57,12 +59,18 @@ class DatabaseManager:
         actor = current_user()
         columns = {row[1] for row in connection.execute("PRAGMA table_info(audit_log)")}
         if "actor_user_id" in columns:
+            actor_user_id = None
+            if actor is not None:
+                exists = connection.execute(
+                    "SELECT 1 FROM app_users WHERE id=?", (actor.user_id,)
+                ).fetchone()
+                actor_user_id = actor.user_id if exists else None
             connection.execute(
                 """INSERT INTO audit_log
                    (action,entity_type,entity_id,detail,actor_user_id,actor_username)
                    VALUES(?,?,?,?,?,?)""",
-                (action, entity_type, entity_id, detail,
-                 actor.user_id if actor else None, actor.username if actor else "system"),
+                (action, entity_type, entity_id, detail, actor_user_id,
+                 actor.username if actor else "system"),
             )
         else:
             connection.execute(
@@ -94,6 +102,8 @@ class DatabaseManager:
             backup_dir = self.path.parent / "backups"
             stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             destination = backup_dir / f"tcm_expert_{stamp}.db"
+        if destination.resolve() == self.path.resolve():
+            raise ValueError("Tệp sao lưu phải khác cơ sở dữ liệu đang sử dụng")
         destination.parent.mkdir(parents=True, exist_ok=True)
         source = self.connect()
         target = sqlite3.connect(destination)
@@ -108,3 +118,62 @@ class DatabaseManager:
             destination.unlink(missing_ok=True)
             raise RuntimeError(f"Bản sao lưu không hợp lệ: {integrity}")
         return destination
+
+    @staticmethod
+    def validate_backup(source: Path) -> dict[str, int | str]:
+        if not source.is_file():
+            raise FileNotFoundError("Không tìm thấy tệp sao lưu")
+        try:
+            connection = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
+            try:
+                integrity = str(connection.execute("PRAGMA integrity_check").fetchone()[0])
+                if integrity.lower() != "ok":
+                    raise RuntimeError(f"Cơ sở dữ liệu không toàn vẹn: {integrity}")
+                tables = {
+                    row[0] for row in connection.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table'"
+                    )
+                }
+                required = {"schema_version", "patients", "consultations", "audit_log"}
+                missing = sorted(required - tables)
+                if missing:
+                    raise RuntimeError("Thiếu bảng bắt buộc: " + ", ".join(missing))
+                version = int(connection.execute(
+                    "SELECT COALESCE(MAX(version), 0) FROM schema_version"
+                ).fetchone()[0])
+                patient_count = int(connection.execute("SELECT COUNT(*) FROM patients").fetchone()[0])
+                return {"integrity": integrity, "schema_version": version,
+                        "patient_count": patient_count}
+            finally:
+                connection.close()
+        except sqlite3.DatabaseError as error:
+            raise RuntimeError("Tệp không phải bản sao SQLite hợp lệ") from error
+
+    def restore_backup(self, source: Path) -> tuple[Path, dict[str, int | str]]:
+        from tcm_expert.security import require_role
+
+        actor = require_role("admin")
+        source = source.resolve()
+        if source == self.path.resolve():
+            raise ValueError("Không thể phục hồi từ cơ sở dữ liệu đang sử dụng")
+        metadata = self.validate_backup(source)
+        safety_dir = self.path.parent / "backups"
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safety = self.create_backup(safety_dir / f"before_restore_{stamp}.db")
+        temporary = self.path.with_suffix(".restore.tmp")
+        try:
+            shutil.copy2(source, temporary)
+            self.validate_backup(temporary)
+            for suffix in ("-wal", "-shm"):
+                Path(str(self.path) + suffix).unlink(missing_ok=True)
+            os.replace(temporary, self.path)
+            self.initialize()
+            with self.transaction() as connection:
+                self.audit(
+                    connection, "restore", "database", None,
+                    f"source={source.name}; safety={safety.name}; actor={actor.username}",
+                )
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
+        return safety, metadata
