@@ -700,4 +700,26 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_audit_log_entity
             ON audit_log(entity_type,action,created_at DESC,id DESC);
     """),
+    (24, """
+        CREATE TABLE formula_translations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            formula_id INTEGER NOT NULL UNIQUE,
+            language TEXT NOT NULL DEFAULT 'vi',
+            name TEXT NOT NULL DEFAULT '',
+            category TEXT NOT NULL DEFAULT '',
+            treatment_principle TEXT NOT NULL DEFAULT '',
+            indications TEXT NOT NULL DEFAULT '',
+            directions TEXT NOT NULL DEFAULT '',
+            contraindications TEXT NOT NULL DEFAULT '',
+            interactions TEXT NOT NULL DEFAULT '',
+            ingredients_text TEXT NOT NULL DEFAULT '',
+            model TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'draft'
+                CHECK(status IN ('draft','approved')),
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(formula_id) REFERENCES formulas(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_formula_translation_status
+            ON formula_translations(status,language,formula_id);
+    """),
 )

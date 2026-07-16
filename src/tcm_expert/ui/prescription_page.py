@@ -37,7 +37,7 @@ class PrescriptionPage(QWidget):
         self.consultations = ConsultationRepository(database)
         self.settings = SettingsRepository(database)
         self.prescription_ids: list[int] = []
-        self.recommendation_rows: dict[int, dict] = {}
+        self.recommendation_rows: dict[str, dict] = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
@@ -195,28 +195,67 @@ class PrescriptionPage(QWidget):
         rows = []
         if consultation_id is not None:
             rows = self.prescriptions.approved_recommendations(int(consultation_id))
-        self.recommendation_rows = {int(row["id"]): row for row in rows}
+        self.recommendation_rows = {f"r:{row['id']}": row for row in rows}
+        used_formula_ids = {int(row["formula_id"]) for row in rows}
         for row in rows:
-            self.recommendation.addItem(row["formula_name"], row["id"])
-        if not rows:
+            self.recommendation.addItem(
+                f"Đã chọn — {row['formula_name']}", f"r:{row['id']}"
+            )
+        catalogue = []
+        if consultation_id is not None:
+            catalogue = [
+                row for row in self.prescriptions.approved_formula_catalog()
+                if int(row["formula_id"]) not in used_formula_ids
+            ]
+        for row in catalogue:
+            self.recommendation_rows[f"f:{row['formula_id']}"] = row
+            self.recommendation.addItem(
+                f"{row['code']} — {row['formula_name']}", f"f:{row['formula_id']}"
+            )
+        if not rows and not catalogue:
             self.recommendation.addItem("Chưa có bài thuốc đã duyệt", None)
         self.recommendation.blockSignals(False)
         self.clear_recommendation_detail()
         self.refresh_prescriptions()
 
     def load_recommendation(self) -> None:
-        recommendation_id = self.recommendation.currentData()
-        if recommendation_id is None:
+        selection = self.recommendation.currentData()
+        if selection is None:
             self.clear_recommendation_detail()
             return
-        row = self.recommendation_rows.get(int(recommendation_id))
+        row = self.recommendation_rows.get(str(selection))
         if row is None:
             self.clear_recommendation_detail()
             return
-        self.directions.setPlainText(row["custom_directions"] or "")
+        self.directions.setPlainText(
+            row.get("custom_directions") or row.get("directions") or ""
+        )
         self.modifications.setPlainText(row["modifications"] or "")
-        self.safety.setPlainText(row["safety_notes"] or "")
+        self.safety.setPlainText(
+            row.get("safety_notes")
+            or "\n".join(
+                value for value in (row.get("contraindications"), row.get("interactions"))
+                if value
+            )
+        )
         self.principle.setText(row["treatment_principle"] or "")
+
+    def selected_recommendation_id(self, doctor: str) -> int:
+        selection = str(self.recommendation.currentData() or "")
+        if selection.startswith("r:"):
+            return int(selection[2:])
+        if not selection.startswith("f:") or self.visit.currentData() is None:
+            raise ValueError("Chưa chọn bài thuốc cho hồ sơ.")
+        return self.prescriptions.approve_formula_for_consultation(
+            int(self.visit.currentData()),
+            int(selection[2:]),
+            {
+                "directions": self.directions.toPlainText(),
+                "modifications": self.modifications.toPlainText(),
+                "safety_notes": self.safety.toPlainText(),
+                "doctor_name": doctor,
+            },
+        )
 
     def clear_recommendation_detail(self) -> None:
         self.directions.clear()
@@ -254,14 +293,11 @@ class PrescriptionPage(QWidget):
             self.preview.clear()
 
     def create_prescription(self) -> None:
-        recommendation_id = self.recommendation.currentData()
-        if recommendation_id is None:
-            QMessageBox.warning(self, "Thiếu dữ liệu", "Chưa có bài thuốc được phê duyệt.")
-            return
         try:
             doctor = self.settings.doctor_name(required=True)
+            recommendation_id = self.selected_recommendation_id(doctor)
             self.prescriptions.create(
-                int(recommendation_id),
+                recommendation_id,
                 {
                     "diagnosis": self.diagnosis.toPlainText(),
                     "treatment_principle": self.principle.text(),
@@ -298,11 +334,9 @@ class PrescriptionPage(QWidget):
                 if self.prescriptions.detail(selected_id)["status"] == "draft":
                     prescription_id = selected_id
             if prescription_id is None:
-                recommendation_id = self.recommendation.currentData()
-                if recommendation_id is None:
-                    raise ValueError("Chưa có bài thuốc được phê duyệt.")
+                recommendation_id = self.selected_recommendation_id(doctor)
                 prescription_id = self.prescriptions.create(
-                    int(recommendation_id), self._form_values(doctor)
+                    recommendation_id, self._form_values(doctor)
                 )
             self.prescriptions.approve(prescription_id)
             self.doctor.setText(doctor)
@@ -329,7 +363,9 @@ class PrescriptionPage(QWidget):
         self.modifications.setPlainText(detail["modifications"])
         self.safety.setPlainText(detail["safety_notes"])
         self.doctor.setText(detail["doctor_name"])
-        recommendation_index = self.recommendation.findData(detail["recommendation_id"])
+        recommendation_index = self.recommendation.findData(
+            f"r:{detail['recommendation_id']}"
+        )
         if recommendation_index >= 0:
             self.recommendation.setCurrentIndex(recommendation_index)
         items = "\n".join(

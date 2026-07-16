@@ -17,15 +17,19 @@ class FormulaRepository:
         term = f"%{query.strip()}%"
         with self.database.transaction() as connection:
             rows = connection.execute(
-                """SELECT f.*, COUNT(fi.id) AS ingredient_count
+                """SELECT f.*,ft.name AS translated_name,
+                          ft.category AS translated_category,ft.status AS translation_status,
+                          COUNT(fi.id) AS ingredient_count
                    FROM formulas f
                    LEFT JOIN formula_ingredients fi ON fi.formula_id=f.id
+                   LEFT JOIN formula_translations ft ON ft.formula_id=f.id
                    WHERE f.active=1
                      AND (?='' OR f.category=?)
                      AND (?='%%' OR f.name LIKE ? OR f.name_cn LIKE ? OR f.code LIKE ?
-                          OR f.indications LIKE ? OR f.treatment_principle LIKE ?)
+                          OR f.indications LIKE ? OR f.treatment_principle LIKE ?
+                          OR ft.name LIKE ? OR ft.indications LIKE ?)
                    GROUP BY f.id ORDER BY f.name""",
-                (category, category, term, term, term, term, term, term),
+                (category, category, term, term, term, term, term, term, term, term),
             ).fetchall()
         return [dict(row) for row in rows]
 
@@ -134,6 +138,11 @@ class FormulaRepository:
             ).fetchall()
         result = dict(formula)
         result["ingredients"] = [dict(row) for row in ingredients]
+        with self.database.transaction() as connection:
+            translation = connection.execute(
+                "SELECT * FROM formula_translations WHERE formula_id=?", (formula_id,)
+            ).fetchone()
+        result["translation"] = dict(translation) if translation else None
         return result
 
     def safety_alerts(self, formula_id: int) -> list[dict[str, Any]]:

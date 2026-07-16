@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
+    QProgressDialog,
     QPushButton,
     QSplitter,
     QTableWidget,
@@ -29,7 +30,39 @@ from tcm_expert.database import (
     SettingsRepository,
 )
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.services.classic_formula_sync import ClassicFormulaSync
 from tcm_expert.services.formula_recommender import FormulaRecommender
+from tcm_expert.services.ollama_formula_translator import OllamaFormulaTranslator
+
+
+class FormulaTranslationWorker(QThread):
+    progress = Signal(int, int, str)
+    batch_finished = Signal(int, int, int, bool)
+
+    def __init__(self, translator: OllamaFormulaTranslator):
+        super().__init__()
+        self.translator = translator
+        self.cancel_requested = False
+
+    def request_cancel(self) -> None:
+        self.cancel_requested = True
+
+    def run(self) -> None:
+        formula_ids = self.translator.pending_formula_ids()
+        total = len(formula_ids)
+        completed = errors = 0
+        for position, formula_id in enumerate(formula_ids, 1):
+            if self.cancel_requested:
+                break
+            try:
+                result = self.translator.translate(formula_id)
+                completed += 1
+                message = result["name"]
+            except Exception as error:
+                errors += 1
+                message = f"Lỗi bài #{formula_id}: {error}"
+            self.progress.emit(position, total, message)
+        self.batch_finished.emit(completed, errors, total, self.cancel_requested)
 
 
 class FormulaPage(QWidget):
@@ -39,8 +72,12 @@ class FormulaPage(QWidget):
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
         self.recommender = FormulaRecommender(database)
+        self.classic_formula_sync = ClassicFormulaSync(database)
+        self.ollama_translator = OllamaFormulaTranslator(database)
         self.settings = SettingsRepository(database)
         self.current_formula_id: int | None = None
+        self.translation_worker: FormulaTranslationWorker | None = None
+        self.translation_progress: QProgressDialog | None = None
         self.recommendation_ids: list[int] = []
 
         layout = QVBoxLayout(self)
@@ -112,11 +149,23 @@ class FormulaPage(QWidget):
         search.clicked.connect(self.refresh_catalogue)
         edit = QPushButton("Chỉnh sửa bài thuốc")
         edit.clicked.connect(self.edit_selected_formula)
+        sync = QPushButton("Cập nhật cổ phương")
+        sync.setToolTip("Tải danh mục cổ phương mở để tra cứu và kiểm thử")
+        sync.clicked.connect(self.sync_classic_formulas)
+        translate = QPushButton("Dịch thử bằng Qwen")
+        translate.setToolTip("Dịch bài thuốc đang chọn bằng Ollama cục bộ")
+        translate.clicked.connect(self.translate_selected_formula)
+        translate_all = QPushButton("Dịch toàn bộ qua đêm")
+        translate_all.setToolTip("Dịch và lưu tuần tự các cổ phương chưa có bản Việt")
+        translate_all.clicked.connect(self.translate_all_formulas)
         self.query.returnPressed.connect(self.refresh_catalogue)
         filters.addWidget(self.query, 1)
         filters.addWidget(self.category)
         filters.addWidget(search)
         filters.addWidget(edit)
+        filters.addWidget(sync)
+        filters.addWidget(translate)
+        filters.addWidget(translate_all)
         layout.addLayout(filters)
         splitter = QSplitter()
         self.table = QTableWidget(0, 5)
@@ -132,6 +181,105 @@ class FormulaPage(QWidget):
         splitter.setSizes((480, 620))
         layout.addWidget(splitter, 1)
         return page
+
+    def sync_classic_formulas(self) -> None:
+        answer = QMessageBox.question(
+            self,
+            "Cập nhật cổ phương",
+            "Tải dữ liệu cổ phương từ nguồn mở? Dữ liệu chỉ dùng tham khảo và kiểm thử.",
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            result = self.classic_formula_sync.sync()
+        except Exception as error:
+            QMessageBox.warning(self, "Không thể cập nhật", str(error))
+            return
+        self.refresh_catalogue()
+        QMessageBox.information(
+            self,
+            "Đã cập nhật",
+            f"Nhận {result.received} bài; thêm {result.inserted}; "
+            f"cập nhật {result.updated}; bỏ qua {result.skipped}.",
+        )
+
+    def translate_selected_formula(self) -> None:
+        if self.current_formula_id is None:
+            QMessageBox.warning(self, "Chưa chọn", "Hãy chọn một cổ phương cần dịch thử.")
+            return
+        try:
+            self.ollama_translator.translate(self.current_formula_id)
+        except Exception as error:
+            QMessageBox.warning(
+                self,
+                "Không thể dịch",
+                f"Kiểm tra Ollama và mô hình qwen2.5:7b.\n\n{error}",
+            )
+            return
+        self.show_selected()
+        QMessageBox.information(
+            self,
+            "Đã dịch thử",
+            "Bản dịch được lưu ở trạng thái nháp. Dữ liệu Trung văn vẫn được giữ nguyên.",
+        )
+
+    def translate_all_formulas(self) -> None:
+        if self.translation_worker is not None and self.translation_worker.isRunning():
+            QMessageBox.information(self, "Đang dịch", "Tiến trình dịch toàn bộ đang chạy.")
+            return
+        pending = self.ollama_translator.pending_formula_ids()
+        translated, total = self.ollama_translator.translation_counts()
+        if not pending:
+            QMessageBox.information(
+                self, "Đã hoàn tất", f"Đã có bản dịch cho {translated}/{total} cổ phương."
+            )
+            return
+        answer = QMessageBox.question(
+            self,
+            "Dịch toàn bộ qua đêm",
+            f"Còn {len(pending)} cổ phương chưa dịch. Bắt đầu dịch và lưu từng bài?",
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self.translation_progress = QProgressDialog(
+            "Đang khởi động Qwen...", "Dừng sau bài hiện tại", 0, len(pending), self
+        )
+        self.translation_progress.setWindowTitle("Dịch cổ phương bằng Ollama/Qwen")
+        self.translation_progress.setMinimumDuration(0)
+        self.translation_progress.setAutoClose(False)
+        self.translation_progress.setAutoReset(False)
+        self.translation_worker = FormulaTranslationWorker(self.ollama_translator)
+        self.translation_progress.canceled.connect(self.translation_worker.request_cancel)
+        self.translation_worker.progress.connect(self._translation_progressed)
+        self.translation_worker.batch_finished.connect(self._translation_batch_finished)
+        self.translation_worker.start()
+
+    def _translation_progressed(self, current: int, total: int, message: str) -> None:
+        if self.translation_progress is None:
+            return
+        self.translation_progress.setMaximum(total)
+        self.translation_progress.setValue(current)
+        self.translation_progress.setLabelText(
+            f"Đã xử lý {current}/{total}\n{message[:180]}"
+        )
+
+    def _translation_batch_finished(
+        self, completed: int, errors: int, total: int, cancelled: bool
+    ) -> None:
+        if self.translation_progress is not None:
+            self.translation_progress.close()
+        self.refresh_catalogue()
+        status = "Đã dừng" if cancelled else "Đã hoàn tất"
+        QMessageBox.information(
+            self,
+            status,
+            f"Tổng cần dịch: {total}\nĐã lưu: {completed}\nLỗi: {errors}\n"
+            "Lần chạy sau sẽ tự bỏ qua các bài đã lưu.",
+        )
+        if self.translation_worker is not None:
+            self.translation_worker.deleteLater()
+        self.translation_worker = None
+        self.translation_progress = None
 
     def _doctor_formula_tab(self) -> QWidget:
         page = QWidget()
@@ -272,7 +420,9 @@ class FormulaPage(QWidget):
         for row_index, row in enumerate(rows):
             source = "Bác sĩ" if row["source_type"] == "doctor" else "Hệ thống"
             count = row["ingredient_count"] if row["source_type"] == "system" else "Nhập tay"
-            values = (row["category"], row["name"], row["code"], source, count)
+            category = row.get("translated_category") or row["category"]
+            name = row.get("translated_name") or row["name"]
+            values = (category, name, row["code"], source, count)
             for column, value in enumerate(values):
                 item = QTableWidgetItem(str(value))
                 item.setData(Qt.ItemDataRole.UserRole, row["id"])
@@ -302,8 +452,25 @@ class FormulaPage(QWidget):
         safety = "\n".join(
             f"• {x['herb_name']} ↔ {x['interacts_with']}: {x['effect']}" for x in alerts
         )
+        translation = formula.get("translation")
+        translated = ""
+        if translation:
+            translated = (
+                "BẢN DỊCH TIẾNG VIỆT — CHƯA DUYỆT\n"
+                f"{translation['name']}\n\n"
+                f"• Nhóm: {translation['category']}\n"
+                f"• Pháp trị: {translation['treatment_principle']}\n"
+                f"• Chỉ định: {translation['indications']}\n"
+                f"• Cách dùng: {translation['directions']}\n\n"
+                f"THÀNH PHẦN\n{translation['ingredients_text']}\n\n"
+                f"⚠ CHỐNG CHỈ ĐỊNH\n{translation['contraindications']}\n\n"
+                f"⚠ LƯU Ý\n{translation['interactions']}\n\n"
+                f"• Mô hình: {translation['model']}\n"
+                "• Trạng thái: Bản nháp, cần bác sĩ kiểm tra\n\n"
+                "NGUYÊN BẢN TIẾNG TRUNG\n"
+            )
         self.detail.setPlainText(
-            f"{formula['name']}  {formula['name_cn']}\n\n"
+            f"{translated}{formula['name']}  {formula['name_cn']}\n\n"
             f"• Pháp trị: {formula['treatment_principle']}\n"
             f"• Chỉ định: {formula['indications']}\n"
             f"• Dạng: {formula['dosage_form']}\n"

@@ -1,5 +1,42 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 30 — Dịch thử cổ phương bằng Ollama/Qwen
+
+- Kết nối Ollama tại máy cục bộ.
+- Mặc định dùng mô hình `qwen2.5:7b`.
+- Dịch từng cổ phương đang chọn.
+- Giữ nguyên toàn bộ dữ liệu Trung văn.
+- Bản dịch lưu riêng ở trạng thái nháp.
+- Không tự đổi liều hoặc bổ sung kiến thức.
+- Chưa kết nối OpenAI API trực tuyến.
+- Danh sách đơn thuốc tải toàn bộ cổ phương.
+- Bác sĩ chọn cổ phương theo từng hồ sơ.
+- Dùng API Ollama gốc tại máy cục bộ.
+- Bỏ qua proxy khi kết nối `127.0.0.1`.
+- Thời gian chờ tối đa mười phút.
+- Dịch tuần tự toàn bộ cổ phương qua đêm.
+- Lưu ngay sau khi hoàn thành từng bài.
+- Tự bỏ qua mọi bài đã dịch.
+- Cho phép dừng và tiếp tục lần sau.
+- Hiển thị tiến độ và lỗi từng bài.
+- Hiển thị tên Việt trong danh sách.
+- Bắt buộc Qwen tạo nội dung tiếng Việt.
+- Từ chối kết quả sao chép tiếng Trung.
+- Tự dịch lại bản nháp không hợp lệ.
+- Phiên bản Epic 30: `3.6.1`.
+
+## Epic 29 — Đồng bộ dữ liệu cổ phương
+
+- Kết nối danh mục 271 cổ phương nguồn mở.
+- Đồng bộ bằng HTTPS từ dữ liệu JSON.
+- Nhập thành phần, chỉ định và chống chỉ định.
+- Cập nhật lặp lại không tạo bản ghi trùng.
+- Lưu nguồn và nhật ký đồng bộ.
+- Không tự quy đổi hoặc áp dụng liều cổ.
+- Chỉ dùng tra cứu và kiểm thử.
+- Bác sĩ kiểm tra trước mọi quyết định.
+- Phiên bản Epic 29: `3.4.0`.
+
 ## Epic 28 — Sao lưu và phục hồi dữ liệu
 
 - Chỉ quản trị viên được truy cập.

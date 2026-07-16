@@ -38,6 +38,66 @@ class PrescriptionRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def approved_formula_catalog(self) -> list[dict[str, Any]]:
+        with self.database.transaction() as connection:
+            rows = connection.execute(
+                """SELECT f.id AS formula_id,f.code,
+                          COALESCE(NULLIF(ft.name,''),f.name) AS formula_name,
+                          f.treatment_principle,f.directions,f.modifications,
+                          f.contraindications,f.interactions,f.ingredients_text
+                   FROM formulas f
+                   LEFT JOIN formula_translations ft ON ft.formula_id=f.id
+                   WHERE f.active=1
+                     AND (f.source_type='system' OR f.doctor_approved=1)
+                   ORDER BY CASE WHEN f.code LIKE 'CF-%' THEN 0 ELSE 1 END,f.name"""
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def approve_formula_for_consultation(
+        self,
+        consultation_id: int,
+        formula_id: int,
+        values: Mapping[str, Any],
+    ) -> int:
+        directions = optional_text(values.get("directions"), 2000)
+        modifications = optional_text(values.get("modifications"), 2000)
+        safety_notes = optional_text(values.get("safety_notes"), 2000)
+        doctor_name = optional_text(values.get("doctor_name"), 200)
+        if not doctor_name:
+            raise ValueError("Bắt buộc bác sĩ chọn bài thuốc cho hồ sơ.")
+        with self.database.transaction() as connection:
+            formula = connection.execute(
+                """SELECT id FROM formulas WHERE id=? AND active=1
+                   AND (source_type='system' OR doctor_approved=1)""",
+                (formula_id,),
+            ).fetchone()
+            if formula is None:
+                raise ValueError("Bài thuốc không còn khả dụng.")
+            current = connection.execute(
+                """SELECT id FROM formula_recommendations
+                   WHERE consultation_id=? AND formula_id=? AND doctor_approved=1
+                   ORDER BY id DESC LIMIT 1""",
+                (consultation_id, formula_id),
+            ).fetchone()
+            if current is not None:
+                return int(current["id"])
+            cursor = connection.execute(
+                """INSERT INTO formula_recommendations
+                   (consultation_id,formula_id,custom_directions,modifications,
+                    safety_notes,doctor_approved)
+                   VALUES(?,?,?,?,?,1)""",
+                (consultation_id, formula_id, directions, modifications, safety_notes),
+            )
+            recommendation_id = int(cursor.lastrowid)
+            self.database.audit(
+                connection,
+                "approve_for_consultation",
+                "formula_recommendation",
+                recommendation_id,
+                doctor_name,
+            )
+        return recommendation_id
+
     def create(self, recommendation_id: int, values: Mapping[str, Any]) -> int:
         diagnosis = optional_text(values.get("diagnosis"), 2000)
         directions = optional_text(values.get("directions"), 2000)
