@@ -1,6 +1,10 @@
-from PySide6.QtCore import Qt
+from datetime import datetime
+
+from PySide6.QtCore import QTimer, Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QButtonGroup,
+    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -12,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from tcm_expert import __display_version__
+from tcm_expert.database import FollowupAppointmentRepository, SettingsRepository
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.ui.audio_page import AudioPage
 from tcm_expert.ui.appointment_page import AppointmentPage
@@ -27,6 +32,76 @@ from tcm_expert.ui.settings_page import SettingsPage
 from tcm_expert.ui.tongue_page import TonguePage
 
 
+class AppointmentAlertDialog(QDialog):
+    dismissed = Signal(list)
+
+    def __init__(self, alerts: list[dict], parent=None):
+        super().__init__(parent)
+        self.alert_ids = [int(row["alert_id"]) for row in alerts]
+        self.setWindowTitle("Cảnh báo lịch tái khám")
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        self.setWindowFlag(Qt.WindowType.Tool, True)
+        self.setMinimumWidth(460)
+        layout = QVBoxLayout(self)
+        self.heading = QLabel("🔔 ĐẾN GIỜ HẸN TÁI KHÁM")
+        self.heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.heading.setStyleSheet(
+            "font-size: 18px; font-weight: 700; color: #ffffff; "
+            "background: #c62828; padding: 12px; border-radius: 6px;"
+        )
+        layout.addWidget(self.heading)
+        lines = []
+        for row in alerts:
+            try:
+                scheduled = datetime.fromisoformat(row["scheduled_at"]).strftime(
+                    "%d/%m/%Y %H:%M"
+                )
+            except ValueError:
+                scheduled = row["scheduled_at"]
+            lines.append(
+                f"{scheduled} — {row['patient_code']} — {row['full_name']}"
+            )
+        details = QLabel("\n".join(lines))
+        details.setWordWrap(True)
+        layout.addWidget(details)
+        self.close_button = QPushButton("Đã xem — Tắt cảnh báo")
+        self.close_button.clicked.connect(self.dismiss_alert)
+        layout.addWidget(self.close_button)
+        self.was_dismissed = False
+        self.blink_on = True
+        self.blink_timer = QTimer(self)
+        self.blink_timer.setInterval(500)
+        self.blink_timer.timeout.connect(self.toggle_blink)
+        self.blink_timer.start()
+        QApplication.beep()
+
+    def dismiss_alert(self) -> None:
+        if self.was_dismissed:
+            return
+        self.was_dismissed = True
+        self.blink_timer.stop()
+        alert_ids = list(self.alert_ids)
+        self.hide()
+        QTimer.singleShot(0, lambda: self.dismissed.emit(alert_ids))
+        self.done(QDialog.DialogCode.Accepted)
+
+    def closeEvent(self, event) -> None:
+        if not self.was_dismissed:
+            self.was_dismissed = True
+            self.blink_timer.stop()
+            alert_ids = list(self.alert_ids)
+            QTimer.singleShot(0, lambda: self.dismissed.emit(alert_ids))
+        super().closeEvent(event)
+
+    def toggle_blink(self) -> None:
+        self.blink_on = not self.blink_on
+        color = "#c62828" if self.blink_on else "#ef6c00"
+        self.heading.setStyleSheet(
+            "font-size: 18px; font-weight: 700; color: #ffffff; "
+            f"background: {color}; padding: 12px; border-radius: 6px;"
+        )
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -38,6 +113,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("AI Traditional Chinese Medicine Expert")
         self.resize(1180, 720)
         self.setMinimumSize(960, 600)
+        self.appointment_repository = FollowupAppointmentRepository(database)
+        self.settings_repository = SettingsRepository(database)
+        self.appointment_alert_dialog: AppointmentAlertDialog | None = None
 
         root = QWidget()
         layout = QHBoxLayout(root)
@@ -60,6 +138,46 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
+        self.appointment_alert_timer = QTimer(self)
+        self.appointment_alert_timer.setInterval(30_000)
+        self.appointment_alert_timer.timeout.connect(self.check_appointment_alerts)
+        self.appointment_alert_timer.start()
+        QTimer.singleShot(1_500, self.check_appointment_alerts)
+
+    def check_appointment_alerts(self) -> None:
+        self.appointment_repository.expire_after_90_days()
+        if self.appointment_alert_dialog and self.appointment_alert_dialog.isVisible():
+            return
+        alerts = self.appointment_repository.pending_due_alerts()
+        if not alerts:
+            return
+        dialog = AppointmentAlertDialog(alerts, self)
+        dialog.dismissed.connect(self.acknowledge_appointment_alerts)
+        self.appointment_alert_dialog = dialog
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def acknowledge_appointment_alerts(self, alert_ids: list[int]) -> None:
+        try:
+            self.appointment_repository.acknowledge_alerts(
+                alert_ids,
+                acknowledged_by=self.settings_repository.doctor_name(),
+            )
+        except Exception:
+            pass
+        finally:
+            self.appointment_alert_dialog = None
+
+    def closeEvent(self, event) -> None:
+        self.appointment_alert_timer.stop()
+        dialog = self.appointment_alert_dialog
+        if dialog is not None:
+            dialog.was_dismissed = True
+            dialog.blink_timer.stop()
+            dialog.close()
+            self.appointment_alert_dialog = None
+        super().closeEvent(event)
 
     def _sidebar(self) -> QWidget:
         side = QWidget(objectName="sidebar")

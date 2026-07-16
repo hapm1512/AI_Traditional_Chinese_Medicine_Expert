@@ -617,4 +617,48 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_followup_appointment_consultation
             ON followup_appointments(consultation_id,scheduled_at DESC,id DESC);
     """),
+    (18, """
+        CREATE TABLE appointment_reminders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            appointment_id INTEGER NOT NULL,
+            reminded_at TEXT NOT NULL,
+            reminded_by TEXT NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(appointment_id) REFERENCES followup_appointments(id)
+                ON DELETE CASCADE
+        );
+        CREATE INDEX idx_appointment_reminder_appointment
+            ON appointment_reminders(appointment_id,reminded_at DESC,id DESC);
+    """),
+    (19, """
+        CREATE TABLE appointment_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            appointment_id INTEGER NOT NULL UNIQUE,
+            shown_at TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(appointment_id) REFERENCES followup_appointments(id)
+                ON DELETE CASCADE
+        );
+        CREATE INDEX idx_appointment_alert_shown
+            ON appointment_alerts(shown_at DESC,id DESC);
+    """),
+    (20, """
+        ALTER TABLE followup_appointments ADD COLUMN case_state TEXT NOT NULL
+            DEFAULT 'active'
+            CHECK(case_state IN (
+                'active','history_reference','reopened','medical_record','cancelled_90'
+            ));
+        ALTER TABLE followup_appointments ADD COLUMN overdue_note TEXT NOT NULL DEFAULT '';
+        ALTER TABLE followup_appointments ADD COLUMN reviewed_by TEXT NOT NULL DEFAULT '';
+        ALTER TABLE followup_appointments ADD COLUMN reviewed_at TEXT;
+        CREATE INDEX idx_followup_appointment_case_state
+            ON followup_appointments(case_state,scheduled_at,id);
+    """),
+    (21, """
+        ALTER TABLE appointment_alerts ADD COLUMN acknowledged_at TEXT;
+        ALTER TABLE appointment_alerts ADD COLUMN acknowledged_by TEXT NOT NULL DEFAULT '';
+        CREATE INDEX idx_appointment_alert_acknowledged
+            ON appointment_alerts(acknowledged_at,shown_at,id);
+    """),
 )

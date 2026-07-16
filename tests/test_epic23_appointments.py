@@ -12,8 +12,8 @@ from tcm_expert.database import (
 def _appointment_repository(tmp_path):
     database = DatabaseManager(tmp_path / "appointments.db")
     database.initialize()
-    patient = PatientRepository(database).create({"code": "BN023", "full_name": "Nguyễn An"})
-    consultation = ConsultationRepository(database).create(patient["id"], "BN023-001")
+    patient = PatientRepository(database).create({"code": "TH023", "full_name": "Nguyễn An"})
+    consultation = ConsultationRepository(database).create(patient["id"], "TH023-001")
     consultation_id = consultation["id"]
     return database, FollowupAppointmentRepository(database), consultation_id
 

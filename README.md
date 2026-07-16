@@ -1,5 +1,38 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 24 — Appointment Reminders 2.9
+
+- Tách riêng ngày hẹn và giờ hẹn.
+- Chọn riêng giờ `00–23` và phút `00–59`.
+- Không tự lấy giờ hiện tại khi tạo lịch.
+- Bắt buộc chọn đủ giờ và phút.
+- Hiển thị đầy đủ ngày và giờ trong danh sách.
+- Tự hiển thị cảnh báo khi lịch đến giờ.
+- Mỗi lịch hẹn chỉ cảnh báo một lần.
+- Bỏ thanh cảnh báo lịch hẹn thường trực.
+- Hiển thị cửa sổ cảnh báo nhỏ luôn nổi.
+- Tiêu đề cảnh báo chớp màu mỗi 500 ms.
+- Bác sĩ chủ động tắt sau khi đã xem.
+- Chỉ ghi nhận đã xem khi đóng cảnh báo.
+- Nút đã xem dừng chớp và ẩn ngay lập tức.
+- Bác sĩ bắt buộc ghi lý do xử lý quá hạn.
+- Quá 30 ngày được lưu làm lịch sử tham khảo.
+- Quá 90 ngày tự đóng hồ sơ tái khám.
+- Không xóa dữ liệu sức khỏe đã lưu.
+- Trong 90 ngày có thể mở lại lịch tái khám.
+- Sau 90 ngày phải tạo hồ sơ khám mới.
+- Có thể lưu hồ sơ thành bệnh án tham khảo.
+- Hiển thị danh sách lịch hẹn trong ngày.
+- Theo dõi lịch sắp đến trong bảy ngày.
+- Cảnh báo lịch đã qua nhưng chưa xác nhận.
+- Lọc lịch chưa nhắc và đã nhắc.
+- Ghi người nhắc và thời gian thực hiện.
+- Lưu toàn bộ lịch sử nhắc độc lập.
+- Lưu audit log cho mỗi lần nhắc.
+- Không tự gửi SMS, Zalo hoặc thông báo ngoài.
+- Nhắc lịch không thay thế chỉ định bác sĩ.
+- Phiên bản `2.9.9`.
+
 ## Epic 23 — Follow-up Appointment Scheduling 2.8
 
 - Quản lý lịch hẹn tái khám theo hồ sơ.
