@@ -1,5 +1,19 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 20 — AI Safety & Validation 2.5
+
+- Kiểm định độ đầy đủ dữ liệu trước khi gọi AI.
+- Chặn đề xuất khi Tứ chẩn dưới ngưỡng an toàn.
+- Phát hiện nội dung chẩn đoán, kê đơn hoặc liều dùng.
+- Chuẩn hóa và loại trùng nguồn tham khảo.
+- Kiểm tra kết nối từng mô-đun trong Cài đặt.
+- Hiển thị trạng thái và thời gian phản hồi.
+- Lưu lỗi, fallback và kết quả kiểm định.
+- AI không tạo hoặc tự phê duyệt đơn thuốc.
+- Bác sĩ luôn quyết định và chịu trách nhiệm.
+- Phiên bản `2.5.0`.
+
+
 ## Epic 19 — AI Clinical Workflow 2.4
 
 - Tích hợp đề xuất AI theo từng hồ sơ khám.
@@ -269,3 +283,4 @@ Không commit file cơ sở dữ liệu bệnh nhân lên GitHub.
 - Bài thuốc chỉ mang tính tham khảo.
 - Bác sĩ chịu trách nhiệm phê duyệt cuối cùng.
 - Dữ liệu bệnh nhân cần được bảo vệ.
+

@@ -1,6 +1,6 @@
 import pytest
 
-from tcm_expert.ai import AIWorkflow, AIWorkflowDisabled, DoctorDecision
+from tcm_expert.ai import AIInputInsufficient, AIWorkflow, AIWorkflowDisabled, DoctorDecision
 from tcm_expert.ai.models import AIProposal
 from tcm_expert.database import ConsultationRepository, DatabaseManager, PatientRepository
 from tcm_expert.database.settings_repository import SettingsRepository
@@ -21,17 +21,18 @@ def test_ai_is_off_by_default(tmp_path):
         AIWorkflow(database).propose(visit_id)
 
 
-def test_provider_independent_fallback_requires_doctor(tmp_path):
+def test_incomplete_input_is_blocked_and_logged(tmp_path):
     database, visit_id = make_visit(tmp_path)
-    proposal = AIWorkflow(database, enabled=True).propose(visit_id)
-    assert proposal.decision == DoctorDecision.PENDING
-    assert proposal.confidence <= 0.95
-    assert "Bác sĩ" in proposal.vietnamese_summary
-    assert "chưa được bác sĩ duyệt" in proposal.vietnamese_summary.lower()
-    assert "Bắt buộc bác sĩ" in proposal.vietnamese_summary
-    assert any("TCMChat" in trace for trace in proposal.provider_trace)
+    with pytest.raises(AIInputInsufficient):
+        AIWorkflow(database, enabled=True).propose(visit_id)
+    with database.transaction() as connection:
+        row = connection.execute(
+            "SELECT status FROM ai_operation_log ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+    assert row["status"] == "blocked"
 
 
 def test_ai_cannot_emit_prescription_or_dose():
     with pytest.raises(ValueError):
         AIProposal(1, "x", metadata={"dosage": "10 g"})
+
