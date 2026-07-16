@@ -19,6 +19,11 @@ class SettingsRepository:
         return dict(row) if row else {}
 
     def doctor_name(self, required: bool = False) -> str:
+        from tcm_expert.security import current_user
+
+        actor = current_user()
+        if required and actor is not None and actor.role != "doctor":
+            raise ValidationError("Chỉ tài khoản bác sĩ được phê duyệt.")
         name = str(self.doctor().get("full_name", "")).strip()
         license_number = str(self.doctor().get("license_number", "")).strip()
         if required and (not name or not license_number):

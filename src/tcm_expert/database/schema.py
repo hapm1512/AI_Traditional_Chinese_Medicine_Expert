@@ -661,4 +661,35 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_appointment_alert_acknowledged
             ON appointment_alerts(acknowledged_at,shown_at,id);
     """),
+    (22, """
+        CREATE TABLE app_users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            full_name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            password_salt TEXT NOT NULL,
+            role TEXT NOT NULL CHECK(role IN ('admin','doctor','nurse')),
+            active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+            must_change_password INTEGER NOT NULL DEFAULT 0 CHECK(must_change_password IN (0,1)),
+            failed_attempts INTEGER NOT NULL DEFAULT 0,
+            locked_until TEXT,
+            last_login_at TEXT,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX idx_app_users_active_role ON app_users(active,role,username);
+
+        CREATE TABLE user_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            logged_in_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            logged_out_at TEXT,
+            logout_reason TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY(user_id) REFERENCES app_users(id)
+        );
+        CREATE INDEX idx_user_sessions_user ON user_sessions(user_id,logged_in_at DESC);
+
+        ALTER TABLE audit_log ADD COLUMN actor_user_id INTEGER REFERENCES app_users(id);
+        ALTER TABLE audit_log ADD COLUMN actor_username TEXT NOT NULL DEFAULT '';
+    """),
 )

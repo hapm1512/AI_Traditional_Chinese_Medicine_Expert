@@ -52,10 +52,23 @@ class DatabaseManager:
         entity_id: int | None,
         detail: str = "",
     ) -> None:
-        connection.execute(
-            "INSERT INTO audit_log(action,entity_type,entity_id,detail) VALUES(?,?,?,?)",
-            (action, entity_type, entity_id, detail),
-        )
+        from tcm_expert.security import current_user
+
+        actor = current_user()
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(audit_log)")}
+        if "actor_user_id" in columns:
+            connection.execute(
+                """INSERT INTO audit_log
+                   (action,entity_type,entity_id,detail,actor_user_id,actor_username)
+                   VALUES(?,?,?,?,?,?)""",
+                (action, entity_type, entity_id, detail,
+                 actor.user_id if actor else None, actor.username if actor else "system"),
+            )
+        else:
+            connection.execute(
+                "INSERT INTO audit_log(action,entity_type,entity_id,detail) VALUES(?,?,?,?)",
+                (action, entity_type, entity_id, detail),
+            )
 
     def reference_counts(self) -> dict[str, int]:
         tables = ("symptoms", "tcm_syndromes", "diseases", "materia_medica", "formulas")

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from PySide6.QtCore import QTimer, Qt, Signal
+from PySide6.QtCore import QEvent, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
@@ -30,6 +30,10 @@ from tcm_expert.ui.patient_page import PatientPage
 from tcm_expert.ui.prescription_page import PrescriptionPage
 from tcm_expert.ui.settings_page import SettingsPage
 from tcm_expert.ui.tongue_page import TonguePage
+from tcm_expert.database.user_repository import UserRepository
+from tcm_expert.security import UserSession, set_current_user
+from tcm_expert.ui.login_dialog import ChangePasswordDialog, LoginDialog
+from tcm_expert.ui.user_management_page import UserManagementPage
 
 
 class AppointmentAlertDialog(QDialog):
@@ -108,11 +112,18 @@ class MainWindow(QMainWindow):
         clinic_name: str,
         database: DatabaseManager,
         database_counts: dict[str, int] | None = None,
+        session: UserSession | None = None,
     ):
         super().__init__()
         self.setWindowTitle("AI Traditional Chinese Medicine Expert")
         self.resize(1180, 720)
         self.setMinimumSize(960, 600)
+        if session is None:
+            raise ValueError("Phiên đăng nhập không hợp lệ.")
+        self.database = database
+        self.session = session
+        self.users = UserRepository(database)
+        self.last_activity = datetime.now()
         self.appointment_repository = FollowupAppointmentRepository(database)
         self.settings_repository = SettingsRepository(database)
         self.appointment_alert_dialog: AppointmentAlertDialog | None = None
@@ -137,6 +148,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(AppointmentPage(database))
         self.pages.addWidget(OutcomeReportPage(database))
         self.pages.addWidget(SettingsPage(database))
+        self.pages.addWidget(UserManagementPage(database))
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
@@ -145,6 +157,38 @@ class MainWindow(QMainWindow):
         self.appointment_alert_timer.timeout.connect(self.check_appointment_alerts)
         self.appointment_alert_timer.start()
         QTimer.singleShot(1_500, self.check_appointment_alerts)
+        self.session_timer = QTimer(self)
+        self.session_timer.setInterval(30_000)
+        self.session_timer.timeout.connect(self.check_session_timeout)
+        self.session_timer.start()
+        QApplication.instance().installEventFilter(self)
+
+    def eventFilter(self, watched, event):
+        if event.type() in {
+            QEvent.Type.MouseButtonPress, QEvent.Type.KeyPress,
+            QEvent.Type.Wheel, QEvent.Type.TouchBegin,
+        }:
+            self.last_activity = datetime.now()
+        return super().eventFilter(watched, event)
+
+    def check_session_timeout(self) -> None:
+        if (datetime.now() - self.last_activity).total_seconds() >= 15 * 60:
+            self.lock_session()
+
+    def lock_session(self) -> None:
+        self.session_timer.stop()
+        self.users.logout(self.session, "inactive_lock")
+        self.hide()
+        login = LoginDialog(self.users, parent=self)
+        if login.exec() != QDialog.DialogCode.Accepted or login.session is None:
+            self.close()
+            return
+        self.session = login.session
+        set_current_user(self.session)
+        self.last_activity = datetime.now()
+        self.apply_permissions()
+        self.show()
+        self.session_timer.start()
 
     def check_appointment_alerts(self) -> None:
         self.appointment_repository.expire_after_90_days()
@@ -179,6 +223,9 @@ class MainWindow(QMainWindow):
             dialog.blink_timer.stop()
             dialog.close()
             self.appointment_alert_dialog = None
+        self.session_timer.stop()
+        self.users.logout(self.session, "application_closed")
+        set_current_user(None)
         super().closeEvent(event)
 
     def _sidebar(self) -> QWidget:
@@ -207,6 +254,7 @@ class MainWindow(QMainWindow):
                 "Lịch hẹn tái khám",
                 "Báo cáo kết quả",
                 "Cài đặt",
+                "Quản lý người dùng",
             )
         ):
             button = QPushButton(text)
@@ -220,10 +268,47 @@ class MainWindow(QMainWindow):
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
+        user_label = QLabel(f"{self.session.full_name}\n{self.role_label(self.session.role)}")
+        user_label.setWordWrap(True)
+        layout.addWidget(user_label)
+        change_password = QPushButton("Đổi mật khẩu")
+        change_password.clicked.connect(self.change_password)
+        layout.addWidget(change_password)
+        lock = QPushButton("Khóa phiên")
+        lock.clicked.connect(self.lock_session)
+        layout.addWidget(lock)
         layout.addWidget(QLabel(f"Phiên bản {__display_version__}"))
+        QTimer.singleShot(0, self.apply_permissions)
         return side
 
+    @staticmethod
+    def role_label(role: str) -> str:
+        return {"admin": "Quản trị", "doctor": "Bác sĩ", "nurse": "Y tá"}.get(role, role)
+
+    def change_password(self) -> None:
+        ChangePasswordDialog(self.users, self.session.user_id, parent=self).exec()
+
+    def apply_permissions(self) -> None:
+        allowed = {
+            "admin": set(range(14)),
+            "doctor": set(range(13)),
+            "nurse": {0, 1, 2, 3, 4, 9, 10},
+        }[self.session.role]
+        for index in range(self.pages.count()):
+            button = self.menu_group.button(index)
+            if button is not None:
+                button.setVisible(index in allowed)
+        if self.pages.currentIndex() not in allowed:
+            self.open_page(0)
+
     def open_page(self, page: int) -> None:
+        allowed = {
+            "admin": set(range(14)),
+            "doctor": set(range(13)),
+            "nurse": {0, 1, 2, 3, 4, 9, 10},
+        }[self.session.role]
+        if page not in allowed:
+            return
         self.pages.setCurrentIndex(page)
         button = self.menu_group.button(page)
         if button is not None:

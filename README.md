@@ -1,5 +1,18 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 26 — Quản lý người dùng và phân quyền
+
+- Đăng nhập bằng tài khoản quản trị, bác sĩ hoặc y tá.
+- Khóa tài khoản 15 phút sau năm lần sai.
+- Tự khóa phiên sau 15 phút không hoạt động.
+- Chỉ bác sĩ được phê duyệt lâm sàng.
+- Quản trị viên tạo, sửa và khóa tài khoản.
+- Quản trị viên xóa tài khoản nhân sự đã nghỉ việc.
+- Không thể xóa tài khoản đang đăng nhập.
+- Nhật ký lưu tài khoản thực hiện thao tác.
+- Tài khoản đầu tiên: `admin` / `Admin@123`.
+- Bắt buộc đổi mật khẩu ngay lần đăng nhập đầu.
+
 ## Epic 25 — Clinic Operations Dashboard 3.0
 
 - Cho phép bác sĩ xóa thông báo trễ quá ba giờ.
@@ -17,7 +30,7 @@
 - Cho phép bác sĩ làm mới thủ công.
 - Dashboard chỉ hỗ trợ vận hành phòng khám.
 - Không tự đưa ra quyết định chuyên môn.
-- Phiên bản `3.0.2`.
+- Phiên bản Epic 25: `3.0.2`.
 
 ## Epic 24 — Appointment Reminders 2.9
 

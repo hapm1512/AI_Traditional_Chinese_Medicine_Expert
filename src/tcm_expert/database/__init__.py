@@ -18,6 +18,7 @@ from tcm_expert.database.settings_repository import SettingsRepository
 from tcm_expert.database.syndrome_repository import SyndromeRepository
 from tcm_expert.database.tongue_repository import TongueAnalysisRepository
 from tcm_expert.database.validation import ValidationError
+from tcm_expert.database.user_repository import UserRepository
 
 __all__ = [
     "ConsultationRepository",
@@ -36,4 +37,5 @@ __all__ = [
     "SyndromeRepository",
     "TongueAnalysisRepository",
     "ValidationError",
+    "UserRepository",
 ]

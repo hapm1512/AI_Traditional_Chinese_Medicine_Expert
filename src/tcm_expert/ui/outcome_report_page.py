@@ -108,7 +108,7 @@ class OutcomeReportPage(QWidget):
         try:
             self.reports.create(
                 *self._dates(), doctor_conclusion=self.conclusion.toPlainText(),
-                reviewed_by=self.settings.doctor_name(),
+                reviewed_by=self.settings.doctor_name(required=True),
             )
         except ValidationError as error:
             QMessageBox.warning(self, "Không thể lưu", str(error))
