@@ -34,7 +34,7 @@ def database(tmp_path):
 
 
 def consultation(database):
-    patient = PatientRepository(database).create({"code": "BN-AUDIO", "full_name": "Nguyễn An"})
+    patient = PatientRepository(database).create({"code": "BN101", "full_name": "Nguyễn An"})
     return ConsultationRepository(database).create(patient["id"], "K-AUDIO-01")
 
 

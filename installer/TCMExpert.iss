@@ -1,5 +1,5 @@
 #define MyAppName "AI Traditional Chinese Medicine Expert"
-#define MyAppVersion "2.0.0"
+#define MyAppVersion "2.1.5"
 #define MyAppPublisher "Hai Pham"
 #define MyAppExeName "TCMExpert.exe"
 
@@ -12,7 +12,7 @@ DefaultDirName={autopf}\TCMExpert
 DefaultGroupName={#MyAppName}
 PrivilegesRequired=lowest
 OutputDir=..\release
-OutputBaseFilename=TCMExpert-2.0.0-Setup-Windows-x64
+OutputBaseFilename=TCMExpert-2.1.5-Setup-Windows-x64
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

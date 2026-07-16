@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -18,10 +19,12 @@ from tcm_expert.database import (
     ClinicalDecisionRepository,
     ConsultationRepository,
     PatientRepository,
+    SettingsRepository,
     ValidationError,
 )
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.services.clinical_decision_support import ClinicalDecisionSupport
+from tcm_expert.ai import AIWorkflowDisabled, create_ai_workflow
 
 
 class ClinicalSupportPage(QWidget):
@@ -31,6 +34,7 @@ class ClinicalSupportPage(QWidget):
         self.consultations = ConsultationRepository(database)
         self.reports = ClinicalDecisionRepository(database)
         self.support = ClinicalDecisionSupport(database)
+        self.settings = SettingsRepository(database)
         self.report_ids: list[int] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
@@ -48,10 +52,13 @@ class ClinicalSupportPage(QWidget):
         self.visit.currentIndexChanged.connect(self.refresh_reports)
         generate = QPushButton("Tạo báo cáo hỗ trợ")
         generate.clicked.connect(self.generate)
+        ai_generate = QPushButton("Đề xuất tham khảo")
+        ai_generate.clicked.connect(self.generate_ai)
         for label, widget in (("Bệnh nhân", self.patient), ("Lần khám", self.visit)):
             selectors.addWidget(QLabel(label))
             selectors.addWidget(widget, 1)
         selectors.addWidget(generate)
+        selectors.addWidget(ai_generate)
         layout.addLayout(selectors)
         self.table = QTableWidget(0, 4)
         self.table.setHorizontalHeaderLabels(("Thời gian", "Đầy đủ", "Nguy cơ", "Trạng thái"))
@@ -65,7 +72,8 @@ class ClinicalSupportPage(QWidget):
         layout.addWidget(self.detail, 2)
         approval = QHBoxLayout()
         self.reviewer = QLineEdit()
-        self.reviewer.setPlaceholderText("Tên bác sĩ phê duyệt")
+        self.reviewer.setReadOnly(True)
+        self.reviewer.setText(self.settings.doctor_name())
         approve = QPushButton("Bác sĩ phê duyệt")
         approve.clicked.connect(self.review)
         approval.addWidget(self.reviewer, 1)
@@ -73,19 +81,42 @@ class ClinicalSupportPage(QWidget):
         layout.addLayout(approval)
         self.refresh_patients()
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh_patients()
+        self.reviewer.setText(self.settings.doctor_name())
+
     def refresh_patients(self) -> None:
+        selected_patient = self.patient.currentData()
+        self.patient.blockSignals(True)
         self.patient.clear()
         self.patient.addItem("Chọn bệnh nhân", None)
         for row in self.patients.list():
             self.patient.addItem(f"{row['code']} — {row['full_name']}", row["id"])
+        index = self.patient.findData(selected_patient)
+        if self.patient.count() > 1:
+            self.patient.setCurrentIndex(index if index >= 1 else 1)
+        self.patient.blockSignals(False)
         self.refresh_visits()
 
     def refresh_visits(self) -> None:
+        selected_visit = self.visit.currentData()
+        self.visit.blockSignals(True)
         self.visit.clear()
+        self.visit.addItem("Chọn lần khám", None)
         patient_id = self.patient.currentData()
         if patient_id is not None:
-            for row in self.consultations.list_for_patient(int(patient_id)):
-                self.visit.addItem(f"{row['visit_code']} — {row['created_at']}", row["id"])
+            rows = self.consultations.list_for_patient(int(patient_id))
+            for number, row in enumerate(reversed(rows), 1):
+                self.visit.addItem(
+                    f"Lần khám {number} — {row['visit_code']} — {row['created_at']}", row["id"]
+                )
+            if not rows:
+                self.visit.addItem("Chưa có hồ sơ khám", None)
+            else:
+                index = self.visit.findData(selected_visit)
+                self.visit.setCurrentIndex(index if index >= 1 else 1)
+        self.visit.blockSignals(False)
         self.refresh_reports()
 
     def refresh_reports(self) -> None:
@@ -115,6 +146,31 @@ class ClinicalSupportPage(QWidget):
         if self.table.rowCount():
             self.table.selectRow(0)
 
+    def generate_ai(self) -> None:
+        consultation_id = self.visit.currentData()
+        if consultation_id is None:
+            QMessageBox.warning(self, "Thiếu dữ liệu", "Hãy chọn lần khám.")
+            return
+        workflow = create_ai_workflow(self.reports.database)
+        try:
+            proposal = workflow.propose(int(consultation_id))
+        except AIWorkflowDisabled as error:
+            QMessageBox.information(self, "AI đang tắt", str(error))
+            return
+        report = self.support.build(int(consultation_id))
+        report["ai_proposal"] = {
+            "summary": proposal.vietnamese_summary,
+            "evidence": list(proposal.evidence),
+            "warnings": list(proposal.warnings),
+            "provider_trace": list(proposal.provider_trace),
+            "confidence": proposal.confidence,
+            "status": proposal.decision.value,
+        }
+        self.reports.create(int(consultation_id), report)
+        self.refresh_reports()
+        if self.table.rowCount():
+            self.table.selectRow(0)
+
     def show_selected(self) -> None:
         row = self.table.currentRow()
         if row < 0 or row >= len(self.report_ids):
@@ -123,6 +179,26 @@ class ClinicalSupportPage(QWidget):
         if saved is None:
             return
         report = saved["report"]
+        proposal = report.get("ai_proposal")
+        if proposal:
+            status = (
+                "ĐÃ ĐƯỢC BÁC SĨ DUYỆT"
+                if saved["status"] == "reviewed"
+                else "CHƯA ĐƯỢC BÁC SĨ DUYỆT"
+            )
+            lines = [
+                f"ĐỀ XUẤT THAM KHẢO — {status}",
+                "",
+                proposal["summary"],
+                "",
+                "CĂN CỨ:",
+                *([f"• {item}" for item in proposal["evidence"]] or ["• Chưa có"]),
+                "",
+                "TRẠNG THÁI MÔ-ĐUN:",
+                *[f"• {item}" for item in proposal["provider_trace"]],
+            ]
+            self.detail.setPlainText("\n".join(lines))
+            return
         lines = [
             f"BỆNH NHÂN: {report['patient']}",
             f"ĐỘ ĐẦY ĐỦ TỨ CHẨN: {report['completeness_score'] * 100:.0f}%",
@@ -165,9 +241,15 @@ class ClinicalSupportPage(QWidget):
         if row < 0 or row >= len(self.report_ids):
             QMessageBox.warning(self, "Thiếu dữ liệu", "Hãy chọn báo cáo.")
             return
+        report_id = self.report_ids[row]
         try:
-            self.reports.review(self.report_ids[row], self.reviewer.text())
+            doctor = self.settings.doctor_name(required=True)
+            self.reviewer.setText(doctor)
+            self.reports.review(report_id, doctor)
         except ValidationError as error:
             QMessageBox.warning(self, "Không thể phê duyệt", str(error))
             return
         self.refresh_reports()
+        if report_id in self.report_ids:
+            self.table.selectRow(self.report_ids.index(report_id))
+        QMessageBox.information(self, "Đã phê duyệt", "Bác sĩ đã phê duyệt báo cáo.")

@@ -3,7 +3,9 @@ from typing import Any
 
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.database.validation import (
+    ValidationError,
     choice,
+    exact_digits,
     iso_date,
     optional_text,
     patient_code,
@@ -68,18 +70,36 @@ class PatientRepository:
             )
             self.database.audit(connection, "soft_delete", "patient", patient_id)
 
-    @staticmethod
-    def _validate(values: Mapping[str, Any]) -> dict[str, Any]:
+    def next_number(self, prefix: str) -> str:
+        with self.database.transaction() as connection:
+            rows = connection.execute(
+                "SELECT code FROM patients WHERE code LIKE ?", (f"{prefix.upper()}___",)
+            ).fetchall()
+        numbers = [int(str(row[0])[-3:]) for row in rows if str(row[0])[-3:].isdigit()]
+        return f"{max(numbers, default=0) + 1:03d}"
+
+    def _validate(self, values: Mapping[str, Any]) -> dict[str, Any]:
         sex = str(values.get("sex") or "")
         if sex:
             choice(sex, "Giới tính", {"male", "female", "other", "unknown"})
+        code = patient_code(values.get("code"))
+        with self.database.transaction() as connection:
+            prefixes = [
+                str(row[0])
+                for row in connection.execute("SELECT prefix FROM patient_code_groups").fetchall()
+            ]
+        if (
+            not any(code == f"{prefix}{code[-3:]}" for prefix in prefixes)
+            or not code[-3:].isdigit()
+        ):
+            raise ValidationError("Mã bệnh nhân phải gồm mã nhóm và đúng 3 chữ số.")
         return {
-            "code": patient_code(values.get("code")),
+            "code": code,
             "full_name": required_text(values.get("full_name"), "Họ tên", 150),
             "birth_date": iso_date(values.get("birth_date"), "Ngày sinh"),
             "sex": sex,
-            "phone": optional_text(values.get("phone"), 30),
-            "identity_number": optional_text(values.get("identity_number"), 30),
+            "phone": exact_digits(values.get("phone"), "Điện thoại", 10),
+            "identity_number": exact_digits(values.get("identity_number"), "CCCD", 12),
             "address": optional_text(values.get("address"), 500),
             "emergency_contact": optional_text(values.get("emergency_contact"), 255),
             "allergies": optional_text(values.get("allergies"), 2000),
@@ -89,11 +109,14 @@ class PatientRepository:
 
 class ConsultationRepository:
     VALID_STATUS = {"draft", "in_review", "approved", "closed"}
+    VALID_PATIENT_STATUS = {"under_treatment", "monitoring", "completed"}
 
     def __init__(self, database: DatabaseManager):
         self.database = database
 
     def create(self, patient_id: int, visit_code: str, **values: Any) -> dict[str, Any]:
+        if not str(visit_code).strip():
+            visit_code = self.next_visit_code(patient_id)
         data = self._validate({"visit_code": visit_code, **values})
         with self.database.transaction() as connection:
             exists = connection.execute(
@@ -110,6 +133,18 @@ class ConsultationRepository:
             self.database.audit(connection, "create", "consultation", cursor.lastrowid)
             consultation_id = cursor.lastrowid
         return self.get(consultation_id)
+
+    def next_visit_code(self, patient_id: int) -> str:
+        with self.database.transaction() as connection:
+            patient = connection.execute(
+                "SELECT code FROM patients WHERE id=? AND deleted_at IS NULL", (patient_id,)
+            ).fetchone()
+            if patient is None:
+                raise LookupError("Không tìm thấy bệnh nhân")
+            count = connection.execute(
+                "SELECT COUNT(*) FROM consultations WHERE patient_id=?", (patient_id,)
+            ).fetchone()[0]
+        return f"{patient['code']}-{int(count) + 1:02d}"
 
     def get(self, consultation_id: int) -> dict[str, Any]:
         with self.database.transaction() as connection:
@@ -475,6 +510,11 @@ class ConsultationRepository:
         return {
             "visit_code": patient_code(values.get("visit_code")),
             "status": choice(values.get("status", "draft"), "Trạng thái", cls.VALID_STATUS),
+            "patient_status": choice(
+                values.get("patient_status", "under_treatment"),
+                "Tình trạng bệnh nhân",
+                cls.VALID_PATIENT_STATUS,
+            ),
             "chief_complaint": optional_text(values.get("chief_complaint"), 2000),
             "symptoms": optional_text(values.get("symptoms"), 5000),
             "western_history": optional_text(values.get("western_history"), 5000),

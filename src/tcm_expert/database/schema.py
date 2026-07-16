@@ -493,4 +493,59 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_formulas_source ON formulas(source_type,created_by,active);
         """,
     ),
+    (
+        11,
+        """
+        CREATE TABLE doctor_profile (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            full_name TEXT NOT NULL DEFAULT '',
+            license_number TEXT NOT NULL DEFAULT '',
+            specialty TEXT NOT NULL DEFAULT '',
+            workplace TEXT NOT NULL DEFAULT '',
+            phone TEXT NOT NULL DEFAULT '',
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT OR IGNORE INTO doctor_profile(id) VALUES(1);
+
+        CREATE TABLE patient_code_groups (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            prefix TEXT NOT NULL UNIQUE,
+            active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT OR IGNORE INTO patient_code_groups(name,prefix) VALUES('Bệnh nhân chung','BN');
+        INSERT OR IGNORE INTO patient_code_groups(name,prefix) VALUES('Tiêu hóa','TH');
+
+        ALTER TABLE consultations ADD COLUMN patient_status TEXT NOT NULL
+            DEFAULT 'under_treatment' CHECK(patient_status IN
+            ('under_treatment','monitoring','completed'));
+
+        ALTER TABLE materia_medica ADD COLUMN image_path TEXT NOT NULL DEFAULT '';
+        ALTER TABLE materia_medica ADD COLUMN modern_effects TEXT NOT NULL DEFAULT '';
+        ALTER TABLE materia_medica ADD COLUMN combinations TEXT NOT NULL DEFAULT '';
+        ALTER TABLE materia_medica ADD COLUMN processing TEXT NOT NULL DEFAULT '';
+        ALTER TABLE materia_medica ADD COLUMN cautions TEXT NOT NULL DEFAULT '';
+        """,
+    ),
+    (12, """
+        CREATE TABLE ai_settings (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            enabled INTEGER NOT NULL DEFAULT 0 CHECK(enabled IN (0,1)),
+            translator TEXT NOT NULL DEFAULT 'Vietnamese-Chinese',
+            reasoner TEXT NOT NULL DEFAULT 'TCMChat',
+            knowledge_sources TEXT NOT NULL DEFAULT 'OpenTCM GraphRAG,TCMBank,SymMap',
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT OR IGNORE INTO ai_settings(id,enabled) VALUES(1,0);
+    """),
+    (13, """
+        ALTER TABLE ai_settings ADD COLUMN mode TEXT NOT NULL DEFAULT 'offline';
+        ALTER TABLE ai_settings ADD COLUMN chat_base_url TEXT NOT NULL DEFAULT '';
+        ALTER TABLE ai_settings ADD COLUMN chat_model TEXT NOT NULL DEFAULT 'tcmchat';
+        ALTER TABLE ai_settings ADD COLUMN opentcm_url TEXT NOT NULL DEFAULT '';
+        ALTER TABLE ai_settings ADD COLUMN tcmbank_url TEXT NOT NULL DEFAULT '';
+        ALTER TABLE ai_settings ADD COLUMN symmap_url TEXT NOT NULL DEFAULT '';
+        ALTER TABLE ai_settings ADD COLUMN timeout_seconds INTEGER NOT NULL DEFAULT 20;
+    """),
 )

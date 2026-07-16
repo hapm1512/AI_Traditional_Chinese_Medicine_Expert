@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QPixmap, QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.database.settings_repository import SettingsRepository
 from tcm_expert.database.tongue_repository import TongueAnalysisRepository
 from tcm_expert.services.tongue_analyzer import TongueAnalyzer
 
@@ -32,6 +33,7 @@ class TonguePage(QWidget):
         super().__init__()
         self.database = database
         self.repository = TongueAnalysisRepository(database)
+        self.settings = SettingsRepository(database)
         self.analyzer = TongueAnalyzer()
         self.source_path: Path | None = None
         self.analysis_id: int | None = None
@@ -51,9 +53,9 @@ class TonguePage(QWidget):
         self.consultation.currentIndexChanged.connect(self.refresh_history)
         choose = QPushButton("Chọn ảnh")
         choose.clicked.connect(self.choose_image)
-        analyze = QPushButton("Phân tích offline")
+        analyze = QPushButton("AI đánh giá")
         analyze.clicked.connect(self.analyze_image)
-        toolbar.addWidget(QLabel("Hồ sơ khám"))
+        toolbar.addWidget(QLabel("Mã BN / lần khám"))
         toolbar.addWidget(self.consultation, 1)
         toolbar.addWidget(choose)
         toolbar.addWidget(analyze)
@@ -85,6 +87,7 @@ class TonguePage(QWidget):
         self.teeth_marks = QCheckBox("Có dấu răng")
         self.cracks = QCheckBox("Có vết nứt")
         self.doctor = QLineEdit()
+        self.doctor.setReadOnly(True)
         self.note = QTextEdit()
         self.note.setMaximumHeight(100)
         form.addRow("Màu chất lưỡi", self.tongue_color)
@@ -94,6 +97,8 @@ class TonguePage(QWidget):
         form.addRow("Vết nứt", self.cracks)
         form.addRow("Bác sĩ duyệt", self.doctor)
         form.addRow("Ghi chú", self.note)
+        self.approved = QCheckBox("Bác sĩ xác nhận kết quả")
+        form.addRow("Đã duyệt", self.approved)
         approve = QPushButton("Lưu kết quả bác sĩ")
         approve.clicked.connect(self.save_review)
         form.addRow(approve)
@@ -107,10 +112,15 @@ class TonguePage(QWidget):
         self.history.itemSelectionChanged.connect(self.load_selected)
         root.addWidget(self.history)
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh_consultations()
+
     def refresh_consultations(self) -> None:
         selected = self.consultation.currentData()
         self.consultation.blockSignals(True)
         self.consultation.clear()
+        self.consultation.addItem("Chưa có hồ sơ khám", None)
         with self.database.transaction() as connection:
             rows = connection.execute(
                 """SELECT c.id,c.visit_code,p.full_name FROM consultations c
@@ -119,8 +129,8 @@ class TonguePage(QWidget):
         for row in rows:
             self.consultation.addItem(f"{row['visit_code']} — {row['full_name']}", row["id"])
         index = self.consultation.findData(selected)
-        if index >= 0:
-            self.consultation.setCurrentIndex(index)
+        if self.consultation.count() > 1:
+            self.consultation.setCurrentIndex(index if index >= 1 else 1)
         self.consultation.blockSignals(False)
         self.refresh_history()
 
@@ -166,7 +176,11 @@ class TonguePage(QWidget):
         if not self.analysis_id:
             QMessageBox.warning(self, "Chưa phân tích", "Chọn một kết quả AI trước.")
             return
+        if not self.approved.isChecked():
+            QMessageBox.warning(self, "Chưa duyệt", "Bác sĩ phải chọn xác nhận kết quả.")
+            return
         try:
+            doctor = self.settings.doctor_name(required=True)
             self.repository.review(
                 self.analysis_id,
                 {
@@ -175,10 +189,11 @@ class TonguePage(QWidget):
                     "coating_thickness": self.coating_thickness.currentText(),
                     "teeth_marks": self.teeth_marks.isChecked(),
                     "cracks": self.cracks.isChecked(),
-                    "reviewed_by": self.doctor.text(),
+                    "reviewed_by": doctor,
                     "note": self.note.toPlainText(),
                 },
             )
+            self.doctor.setText(doctor)
             self.refresh_history()
             QMessageBox.information(self, "Đã lưu", "Đã lưu kết quả bác sĩ duyệt.")
         except ValueError as error:
@@ -191,8 +206,9 @@ class TonguePage(QWidget):
         for index, row in enumerate(rows):
             values = (
                 row["created_at"],
-                row["tongue_color"],
-                f"{row['coating_color']} / {row['coating_thickness']}",
+                row["doctor_tongue_color"] or row["tongue_color"],
+                f"{row['doctor_coating_color'] or row['coating_color']} / "
+                f"{row['doctor_coating_thickness'] or row['coating_thickness']}",
                 f"{row['ai_confidence'] * 100:.1f}%",
                 "Có" if row["reviewed_at"] else "Chưa",
             )
@@ -226,6 +242,7 @@ class TonguePage(QWidget):
             bool(row["doctor_cracks"] if row["doctor_cracks"] is not None else row["cracks"])
         )
         self.doctor.setText(row["reviewed_by"])
+        self.approved.setChecked(bool(row["reviewed_at"]))
         self.note.setPlainText(row["doctor_note"])
         self.quality.setText(f"Chất lượng: {row['quality_score'] * 100:.1f}%")
         self.confidence.setText(f"Độ tin cậy AI: {row['ai_confidence'] * 100:.1f}%")

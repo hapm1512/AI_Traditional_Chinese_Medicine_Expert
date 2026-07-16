@@ -4,6 +4,7 @@ import shutil
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -22,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from tcm_expert.database.audio_repository import AudioAnalysisRepository
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.database.settings_repository import SettingsRepository
 from tcm_expert.services.audio_analyzer import AudioAnalyzer
 
 
@@ -37,6 +39,7 @@ class AudioPage(QWidget):
         super().__init__()
         self.database = database
         self.repository = AudioAnalysisRepository(database)
+        self.settings = SettingsRepository(database)
         self.analyzer = AudioAnalyzer()
         self.source_path: Path | None = None
         self.analysis_id: int | None = None
@@ -59,9 +62,9 @@ class AudioPage(QWidget):
             self.sample_type.addItem(label, value)
         choose = QPushButton("Chọn WAV")
         choose.clicked.connect(self.choose_audio)
-        analyze = QPushButton("Phân tích offline")
+        analyze = QPushButton("AI đánh giá")
         analyze.clicked.connect(self.analyze_audio)
-        toolbar.addWidget(QLabel("Hồ sơ"))
+        toolbar.addWidget(QLabel("Mã BN / lần khám"))
         toolbar.addWidget(self.consultation, 1)
         toolbar.addWidget(self.sample_type)
         toolbar.addWidget(choose)
@@ -70,7 +73,6 @@ class AudioPage(QWidget):
 
         body = QHBoxLayout()
         status = QVBoxLayout()
-        self.filename = QLabel("Tệp: —")
         self.quality = QLabel("Chất lượng: —")
         self.features = QLabel("Đặc trưng: —")
         self.features.setWordWrap(True)
@@ -78,7 +80,7 @@ class AudioPage(QWidget):
         self.result.setWordWrap(True)
         self.issues = QLabel("Lỗi bản ghi: —")
         self.issues.setWordWrap(True)
-        for widget in (self.filename, self.quality, self.features, self.result, self.issues):
+        for widget in (self.quality, self.features, self.result, self.issues):
             status.addWidget(widget)
         status.addStretch()
         body.addLayout(status, 1)
@@ -91,6 +93,7 @@ class AudioPage(QWidget):
         manual_save.clicked.connect(self.save_manual)
         self.doctor_label = QLineEdit()
         self.doctor = QLineEdit()
+        self.doctor.setReadOnly(True)
         self.note = QTextEdit()
         self.note.setMaximumHeight(90)
         approve = QPushButton("Bác sĩ xác nhận")
@@ -111,10 +114,15 @@ class AudioPage(QWidget):
         self.history.itemSelectionChanged.connect(self.load_selected)
         root.addWidget(self.history, 1)
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        self.refresh_consultations()
+
     def refresh_consultations(self) -> None:
         selected = self.consultation.currentData()
         self.consultation.blockSignals(True)
         self.consultation.clear()
+        self.consultation.addItem("Chưa có hồ sơ khám", None)
         with self.database.transaction() as connection:
             rows = connection.execute(
                 """SELECT c.id,c.visit_code,p.full_name FROM consultations c
@@ -123,8 +131,8 @@ class AudioPage(QWidget):
         for row in rows:
             self.consultation.addItem(f"{row['visit_code']} — {row['full_name']}", row["id"])
         index = self.consultation.findData(selected)
-        if index >= 0:
-            self.consultation.setCurrentIndex(index)
+        if self.consultation.count() > 1:
+            self.consultation.setCurrentIndex(index if index >= 1 else 1)
         self.consultation.blockSignals(False)
         self.refresh_history()
 
@@ -132,7 +140,6 @@ class AudioPage(QWidget):
         filename, _ = QFileDialog.getOpenFileName(self, "Chọn âm thanh", "", "WAV PCM (*.wav)")
         if filename:
             self.source_path = Path(filename)
-            self.filename.setText(f"Tệp: {self.source_path.name}")
 
     def analyze_audio(self) -> None:
         consultation_id = self.consultation.currentData()
@@ -171,12 +178,14 @@ class AudioPage(QWidget):
             QMessageBox.warning(self, "Chưa chọn", "Chọn một kết quả trước.")
             return
         try:
+            doctor = self.settings.doctor_name(required=True)
             self.repository.review(
                 self.analysis_id,
-                self.doctor.text(),
+                doctor,
                 self.doctor_label.text(),
                 self.note.toPlainText(),
             )
+            self.doctor.setText(doctor)
             self.refresh_history()
             QMessageBox.information(self, "Đã lưu", "Đã lưu xác nhận của bác sĩ.")
         except ValueError as error:
@@ -209,7 +218,6 @@ class AudioPage(QWidget):
         if not row:
             return
         self.analysis_id = row["id"]
-        self.filename.setText("Tệp: " + (Path(row["original_audio_path"]).name or "Nhập tay"))
         self.quality.setText(f"Chất lượng: {row['quality_score'] * 100:.1f}%")
         self.features.setText(
             f"Đặc trưng: RMS {row['rms_level']:.4f} • Peak {row['peak_level']:.4f} • "

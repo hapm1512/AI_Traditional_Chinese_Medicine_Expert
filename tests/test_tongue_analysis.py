@@ -29,7 +29,7 @@ def sample_image(path: Path, color=(205, 88, 105)) -> Path:
 
 
 def consultation(database):
-    patient = PatientRepository(database).create({"code": "BN-LUOI", "full_name": "Nguyễn An"})
+    patient = PatientRepository(database).create({"code": "BN106", "full_name": "Nguyễn An"})
     return ConsultationRepository(database).create(patient["id"], "K-LUOI-01")
 
 

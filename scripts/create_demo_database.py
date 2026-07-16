@@ -11,7 +11,7 @@ def main() -> None:
     database.initialize()
     patient = PatientRepository(database).create(
         {
-            "code": "DEMO-001",
+            "code": "BN999",
             "full_name": "Bệnh nhân minh họa",
             "birth_date": "1985-01-01",
             "sex": "other",

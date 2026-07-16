@@ -42,6 +42,15 @@ def patient_code(value: Any) -> str:
     return code
 
 
+def exact_digits(value: Any, field: str, length: int, optional: bool = True) -> str:
+    text = str(value or "").strip()
+    if optional and not text:
+        return ""
+    if not re.fullmatch(rf"\d{{{length}}}", text):
+        raise ValidationError(f"{field} phải đúng {length} chữ số")
+    return text
+
+
 def choice(value: Any, field: str, allowed: set[str]) -> str:
     text = str(value or "")
     if text not in allowed:

@@ -14,7 +14,7 @@ Remove-Item build, dist, release -Recurse -Force -ErrorAction SilentlyContinue
 
 New-Item -ItemType Directory -Force release | Out-Null
 Copy-Item README.md, USER_GUIDE.md, BACKUP_GUIDE.md, LICENSE dist\TCMExpert
-Compress-Archive -Path dist\TCMExpert\* -DestinationPath release\TCMExpert-2.0.0-Windows-x64.zip
+Compress-Archive -Path dist\TCMExpert\* -DestinationPath release\TCMExpert-2.1.5-Windows-x64.zip
 
 $Iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
 if ($Iscc) {

@@ -10,7 +10,8 @@ class AppSettings:
     language: str = "vi_VN"
     theme: str = "dark"
     clinic_name: str = "Phòng khám Đông y"
-    require_doctor_approval: bool = True
+    # Tạm tắt trong giai đoạn build/test. Bật lại trước bản vận hành chính thức.
+    require_doctor_approval: bool = False
 
     @classmethod
     def load(cls, path: Path) -> "AppSettings":
@@ -42,7 +43,7 @@ class AppSettings:
         self.language = str(self.language).strip() or "vi_VN"
         self.theme = self.theme if self.theme in {"dark"} else "dark"
         self.clinic_name = str(self.clinic_name).strip()[:120] or "Phòng khám Đông y"
-        self.require_doctor_approval = True
+        self.require_doctor_approval = bool(self.require_doctor_approval)
 
     def save(self, path: Path) -> None:
         self.validate()

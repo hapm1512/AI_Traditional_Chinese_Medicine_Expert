@@ -17,6 +17,7 @@ from tcm_expert.ui.audio_page import AudioPage
 from tcm_expert.ui.clinical_support_page import ClinicalSupportPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
 from tcm_expert.ui.formula_page import FormulaPage
+from tcm_expert.ui.materia_medica_page import MateriaMedicaPage
 from tcm_expert.ui.patient_page import PatientPage
 from tcm_expert.ui.prescription_page import PrescriptionPage
 from tcm_expert.ui.settings_page import SettingsPage
@@ -45,6 +46,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(DiagnosisPage(database))
         self.pages.addWidget(TonguePage(database))
         self.pages.addWidget(AudioPage(database))
+        self.pages.addWidget(MateriaMedicaPage(database))
         self.pages.addWidget(FormulaPage(database))
         self.pages.addWidget(PrescriptionPage(database))
         self.pages.addWidget(ClinicalSupportPage(database))
@@ -71,6 +73,7 @@ class MainWindow(QMainWindow):
                 "Hỗ trợ chẩn đoán",
                 "AI phân tích lưỡi",
                 "AI phân tích âm thanh",
+                "Tra cứu dược",
                 "Bài thuốc tham khảo",
                 "Đơn thuốc bác sĩ",
                 "Hỗ trợ quyết định",

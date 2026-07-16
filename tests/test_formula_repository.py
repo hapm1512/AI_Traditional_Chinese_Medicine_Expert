@@ -33,9 +33,7 @@ def test_formula_search_and_detail(database: DatabaseManager) -> None:
 def test_recommendation_requires_safety_note_for_approval(
     database: DatabaseManager,
 ) -> None:
-    patient = PatientRepository(database).create(
-        {"code": "BN-FORMULA", "full_name": "Nguyễn Văn A"}
-    )
+    patient = PatientRepository(database).create({"code": "BN104", "full_name": "Nguyễn Văn A"})
     consultation = ConsultationRepository(database).create(patient["id"], "K-FORMULA")
     repository = FormulaRepository(database)
     formula = repository.search()[0]

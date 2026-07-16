@@ -16,7 +16,7 @@ def test_report_is_explainable_persistent_and_requires_doctor(tmp_path: Path) ->
     database = DatabaseManager(tmp_path / "clinical.db")
     database.initialize()
     patient = PatientRepository(database).create(
-        {"code": "BN-CDS", "full_name": "Nguyễn Văn A", "allergies": ""}
+        {"code": "BN102", "full_name": "Nguyễn Văn A", "allergies": ""}
     )
     consultation = ConsultationRepository(database).create(
         patient["id"], "K-CDS", chief_complaint="Đau ngực và khó thở"

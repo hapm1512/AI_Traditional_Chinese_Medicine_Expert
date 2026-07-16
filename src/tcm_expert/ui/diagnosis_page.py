@@ -1,4 +1,5 @@
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -22,7 +23,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from tcm_expert.database import ConsultationRepository, PatientRepository, SyndromeRepository
+from tcm_expert.database import (
+    ConsultationRepository,
+    PatientRepository,
+    SettingsRepository,
+    SyndromeRepository,
+)
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.services.syndrome_reasoner import suggest
 
@@ -766,6 +772,7 @@ class DiagnosisPage(QWidget):
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
         self.syndromes = SyndromeRepository(database)
+        self.settings = SettingsRepository(database)
         self.editors: list[QWidget] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(28, 24, 28, 24)
@@ -790,14 +797,8 @@ class DiagnosisPage(QWidget):
         for field in (self.complaint, self.history, self.assessment):
             field.setMaximumHeight(64)
         self.doctor = QLineEdit()
-        self.status = QComboBox()
-        for key, text in (
-            ("draft", "Bản nháp"),
-            ("in_review", "Đang duyệt"),
-            ("approved", "Đã duyệt"),
-            ("closed", "Đã đóng"),
-        ):
-            self.status.addItem(text, key)
+        self.doctor.setReadOnly(True)
+        self.status = QLabel("—")
         form.addRow("Lý do khám", self.complaint)
         form.addRow("Tiền sử", self.history)
         form.addRow("Nhận định sơ bộ", self.assessment)
@@ -826,6 +827,15 @@ class DiagnosisPage(QWidget):
         layout.addWidget(tabs, 1)
         self.reload_patients()
 
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        selected = self.patient.currentData()
+        self.reload_patients()
+        if selected is not None:
+            index = self.patient.findData(selected)
+            if index >= 0:
+                self.patient.setCurrentIndex(index)
+
     @staticmethod
     def _scrollable(editor: QWidget) -> QScrollArea:
         editor.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -847,48 +857,78 @@ class DiagnosisPage(QWidget):
         self.load_visits()
 
     def load_visits(self) -> None:
+        selected_visit = self.visit.currentData()
         patient_id = self.patient.currentData()
         self.visit.blockSignals(True)
         self.visit.clear()
         self.visit.addItem("— Chọn lần khám —", None)
         if patient_id is not None:
-            for item in self.consultations.list_for_patient(int(patient_id)):
-                self.visit.addItem(f"{item['visit_code']} • {item['created_at']}", item["id"])
+            rows = self.consultations.list_for_patient(int(patient_id))
+            for number, item in enumerate(reversed(rows), 1):
+                self.visit.addItem(
+                    f"Lần khám {number} • {item['visit_code']} • {item['created_at']}", item["id"]
+                )
+            if not rows:
+                self.visit.addItem("Chưa có hồ sơ khám", None)
+            else:
+                index = self.visit.findData(selected_visit)
+                self.visit.setCurrentIndex(index if index >= 1 else 1)
         self.visit.blockSignals(False)
         self.load_consultation()
 
     def load_consultation(self) -> None:
         consultation_id = self.visit.currentData()
-        enabled = consultation_id is not None
-        self.summary.setEnabled(enabled)
+        has_patient = self.patient.currentData() is not None
+        has_consultation = consultation_id is not None
+        self.summary.setEnabled(has_patient)
         for editor in self.editors:
-            editor.set_consultation(int(consultation_id) if enabled else None)
-        if not enabled:
+            editor.set_consultation(int(consultation_id) if has_consultation else None)
+        if not has_consultation:
             for field in (self.complaint, self.history, self.assessment, self.doctor):
                 field.clear()
+            if has_patient:
+                self.doctor.setText(self.settings.doctor_name())
+                self.status.setText("Đang điều trị")
+            else:
+                self.status.setText("—")
             return
         item = self.consultations.get(int(consultation_id))
         self.complaint.setPlainText(item.get("chief_complaint", ""))
         self.history.setPlainText(item.get("western_history", ""))
         self.assessment.setPlainText(item.get("assessment", ""))
         self.doctor.setText(item.get("doctor_name", ""))
-        self.status.setCurrentIndex(max(0, self.status.findData(item["status"])))
+        labels = {
+            "under_treatment": "Đang điều trị",
+            "monitoring": "Đang theo dõi",
+            "completed": "Đã kết thúc điều trị",
+        }
+        self.status.setText(labels.get(item.get("patient_status"), "—"))
 
     def save_summary(self) -> None:
         consultation_id = self.visit.currentData()
-        if consultation_id is None:
+        patient_id = self.patient.currentData()
+        if patient_id is None:
+            QMessageBox.warning(self, "Chưa chọn", "Hãy chọn bệnh nhân trước.")
             return
         try:
-            self.consultations.update(
-                int(consultation_id),
-                {
-                    "chief_complaint": self.complaint.toPlainText(),
-                    "western_history": self.history.toPlainText(),
-                    "assessment": self.assessment.toPlainText(),
-                    "doctor_name": self.doctor.text(),
-                    "status": self.status.currentData(),
-                },
-            )
-            QMessageBox.information(self, "Đã lưu", "Hồ sơ khám đã được cập nhật.")
+            doctor = self.settings.doctor_name(required=True)
+            values = {
+                "chief_complaint": self.complaint.toPlainText(),
+                "western_history": self.history.toPlainText(),
+                "assessment": self.assessment.toPlainText(),
+                "doctor_name": doctor,
+            }
+            if consultation_id is None:
+                saved = self.consultations.create(int(patient_id), "", **values)
+                self.load_visits()
+                index = self.visit.findData(saved["id"])
+                if index >= 0:
+                    self.visit.setCurrentIndex(index)
+                message = "Đã tạo và lưu lần khám đầu tiên."
+            else:
+                self.consultations.update(int(consultation_id), values)
+                message = "Hồ sơ khám đã được cập nhật."
+            self.doctor.setText(doctor)
+            QMessageBox.information(self, "Đã lưu", message)
         except Exception as error:
             QMessageBox.warning(self, "Không thể lưu", str(error))

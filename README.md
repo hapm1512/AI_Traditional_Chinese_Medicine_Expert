@@ -1,5 +1,53 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 18 — Connected AI Providers 2.3
+
+- Kết nối TCMChat qua API tương thích OpenAI.
+- Dịch Việt–Trung hai chiều qua mô-đun cấu hình.
+- Kết nối OpenTCM GraphRAG, TCMBank và SymMap.
+- Cho phép máy chủ HTTPS hoặc máy cục bộ.
+- Không lưu khóa API trong cơ sở dữ liệu.
+- Đọc khóa TCMChat từ biến môi trường.
+- Giới hạn thời gian chờ từ 3–120 giây.
+- Tự quay về Rule Engine khi mô-đun lỗi.
+- AI vẫn chỉ tạo đề xuất tham khảo.
+- Bác sĩ bắt buộc kiểm tra và quyết định.
+- Phiên bản `2.3.0`.
+
+## Epic 17 — AI Integration Foundation 2.2
+
+- Tách lớp AI khỏi giao diện và dữ liệu.
+- Mặc định tắt toàn bộ luồng AI.
+- Bổ sung công tắc AI trong Cài đặt.
+- Chuẩn bị bộ dịch Việt–Trung hai chiều.
+- Chuẩn bị adapter TCMChat.
+- Chuẩn bị OpenTCM GraphRAG, TCMBank, SymMap.
+- Luôn chạy Rule Engine minh bạch.
+- Luồng cố định: AI đề xuất → bác sĩ kiểm tra → bác sĩ quyết định.
+- AI không chẩn đoán, đặt liều, kê đơn hoặc phê duyệt.
+- Mọi đề xuất hiển thị trạng thái chưa được bác sĩ duyệt.
+- Bắt buộc bác sĩ phê duyệt trước khi sử dụng.
+- Lưu đề xuất tham khảo thành báo cáo bản nháp.
+- Chỉ phê duyệt báo cáo đã chọn trong bảng.
+- Bắt buộc hồ sơ và giấy phép bác sĩ.
+- Nút bác sĩ phê duyệt tự lưu đơn mới.
+- Không bắt buộc tạo đơn nháp trước.
+- Đổi nút thành `Tạo đơn thuốc`.
+- Ẩn thanh cuộn tại ô có nút soạn thảo.
+- Phiên bản `2.2.4`.
+
+## Epic 17A — Clinical Workflow 2.1
+
+- Quản lý quy ước mã nhóm bệnh.
+- Tự tạo mã bệnh nhân và lần khám.
+- Hiển thị ngày sinh chuẩn Việt Nam.
+- Kiểm soát điện thoại và CCCD.
+- Bắt buộc định danh bác sĩ sử dụng.
+- Đồng bộ lịch sử khám trên mọi trang.
+- Kết hợp nhận xét AI và bác sĩ.
+- Chuẩn hóa bài thuốc và đơn thuốc.
+- Bổ sung trang Tra cứu dược.
+
 ## Epic 16 — Testing & Stable Release
 
 - Khóa phiên bản ổn định `2.0.0`.

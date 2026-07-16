@@ -46,19 +46,29 @@ class FormulaRepository:
             return formula_id
 
     def update_doctor_formula(self, formula_id: int, values: Mapping[str, Any]) -> None:
+        self.update_formula(formula_id, values)
+
+    def update_formula(self, formula_id: int, values: Mapping[str, Any]) -> None:
         data = self._doctor_values(values)
         with self.database.transaction() as connection:
+            current = connection.execute(
+                "SELECT source_type,disclaimer FROM formulas WHERE id=? AND active=1",
+                (formula_id,),
+            ).fetchone()
+            if current is None:
+                raise ValueError("Không tìm thấy bài thuốc.")
+            disclaimer = current["disclaimer"] if current["source_type"] == "system" else data[11]
             cursor = connection.execute(
                 """UPDATE formulas SET code=?,name=?,category=?,treatment_principle=?,
                    indications=?,dosage_form=?,directions=?,modifications=?,
                    contraindications=?,interactions=?,reference_source=?,disclaimer=?,
                    created_by=?,doctor_approved=?,ingredients_text=?
-                   WHERE id=? AND source_type='doctor' AND active=1""",
-                (*data[:12], *data[12:], formula_id),
+                   WHERE id=? AND active=1""",
+                (*data[:11], disclaimer, *data[12:], formula_id),
             )
             if cursor.rowcount != 1:
-                raise ValueError("Không tìm thấy bài thuốc kinh nghiệm.")
-            self.database.audit(connection, "update", "doctor_formula", formula_id, data[-3])
+                raise ValueError("Không tìm thấy bài thuốc.")
+            self.database.audit(connection, "update", "formula", formula_id, data[-3])
 
     def hide_doctor_formula(self, formula_id: int, doctor_name: str) -> None:
         doctor_name = optional_text(doctor_name, 200)

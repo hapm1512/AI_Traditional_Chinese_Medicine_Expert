@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
@@ -21,6 +24,7 @@ from tcm_expert.database import (
     ConsultationRepository,
     PatientRepository,
     PrescriptionRepository,
+    SettingsRepository,
 )
 from tcm_expert.database.manager import DatabaseManager
 
@@ -31,6 +35,7 @@ class PrescriptionPage(QWidget):
         self.prescriptions = PrescriptionRepository(database)
         self.patients = PatientRepository(database)
         self.consultations = ConsultationRepository(database)
+        self.settings = SettingsRepository(database)
         self.prescription_ids: list[int] = []
         self.recommendation_rows: dict[int, dict] = {}
 
@@ -72,15 +77,16 @@ class PrescriptionPage(QWidget):
         self.safety = QTextEdit()
         self.safety.setMaximumHeight(70)
         self.doctor = QLineEdit()
+        self.doctor.setReadOnly(True)
         form.addRow("Bài thuốc đã duyệt", self.recommendation)
-        form.addRow("Chẩn đoán", self.diagnosis)
-        form.addRow("Pháp trị", self.principle)
-        form.addRow("Cách dùng", self.directions)
-        form.addRow("Gia giảm", self.modifications)
-        form.addRow("Ghi chú an toàn", self.safety)
+        form.addRow("Chẩn đoán", self._editor_with_pen(self.diagnosis, "Chẩn đoán"))
+        form.addRow("Pháp trị", self._editor_with_pen(self.principle, "Pháp trị"))
+        form.addRow("Cách dùng", self._editor_with_pen(self.directions, "Cách dùng"))
+        form.addRow("Gia giảm", self._editor_with_pen(self.modifications, "Gia giảm"))
+        form.addRow("Ghi chú an toàn", self._editor_with_pen(self.safety, "Ghi chú an toàn"))
         form.addRow("Bác sĩ", self.doctor)
         buttons = QHBoxLayout()
-        create = QPushButton("Tạo đơn nháp")
+        create = QPushButton("Tạo đơn thuốc")
         create.clicked.connect(self.create_prescription)
         approve = QPushButton("Bác sĩ phê duyệt")
         approve.clicked.connect(self.approve_prescription)
@@ -105,6 +111,45 @@ class PrescriptionPage(QWidget):
         splitter.setSizes((450, 650))
         layout.addWidget(splitter, 1)
         self.refresh_patients()
+        self.doctor.setText(self.settings.doctor_name())
+
+    def _editor_with_pen(self, editor: QWidget, title: str) -> QWidget:
+        container = QWidget()
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        if isinstance(editor, QTextEdit):
+            editor.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            editor.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        button = QPushButton("✎")
+        button.setFixedWidth(42)
+        button.setToolTip(f"Mở bảng soạn thảo {title.lower()}")
+        button.clicked.connect(lambda: self._open_editor(editor, title))
+        layout.addWidget(editor, 1)
+        layout.addWidget(button)
+        return container
+
+    def _open_editor(self, editor: QWidget, title: str) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"Soạn thảo — {title}")
+        dialog.resize(700, 440)
+        layout = QVBoxLayout(dialog)
+        text = QTextEdit()
+        current = editor.toPlainText() if isinstance(editor, QTextEdit) else editor.text()
+        text.setPlainText(current)
+        layout.addWidget(text)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.button(QDialogButtonBox.StandardButton.Save).setText("Lưu")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Hủy")
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        if dialog.exec():
+            if isinstance(editor, QTextEdit):
+                editor.setPlainText(text.toPlainText())
+            else:
+                editor.setText(text.toPlainText().replace("\n", " ").strip())
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
@@ -136,9 +181,9 @@ class PrescriptionPage(QWidget):
             self.visit.addItem(f"{row['visit_code']} — {row['created_at']}", row["id"])
         if not rows:
             self.visit.addItem("Chưa có lần khám", None)
-        elif selected_id is not None:
+        else:
             index = self.visit.findData(selected_id)
-            self.visit.setCurrentIndex(max(index, 0))
+            self.visit.setCurrentIndex(index if index >= 1 else 1)
         self.visit.blockSignals(False)
         self.refresh_context()
 
@@ -214,6 +259,7 @@ class PrescriptionPage(QWidget):
             QMessageBox.warning(self, "Thiếu dữ liệu", "Chưa có bài thuốc được phê duyệt.")
             return
         try:
+            doctor = self.settings.doctor_name(required=True)
             self.prescriptions.create(
                 int(recommendation_id),
                 {
@@ -222,31 +268,70 @@ class PrescriptionPage(QWidget):
                     "directions": self.directions.toPlainText(),
                     "modifications": self.modifications.toPlainText(),
                     "safety_notes": self.safety.toPlainText(),
-                    "doctor_name": self.doctor.text(),
+                    "doctor_name": doctor,
                 },
             )
+            self.doctor.setText(doctor)
         except ValueError as error:
             QMessageBox.warning(self, "Chưa thể tạo đơn", str(error))
             return
         self.refresh_prescriptions()
         QMessageBox.information(self, "Đã tạo", "Đã tạo đơn nháp để bác sĩ kiểm tra.")
 
+    def _form_values(self, doctor: str) -> dict[str, str]:
+        return {
+            "diagnosis": self.diagnosis.toPlainText(),
+            "treatment_principle": self.principle.text(),
+            "directions": self.directions.toPlainText(),
+            "modifications": self.modifications.toPlainText(),
+            "safety_notes": self.safety.toPlainText(),
+            "doctor_name": doctor,
+        }
+
     def approve_prescription(self) -> None:
         row = self.table.currentRow()
-        if row < 0:
-            return
         try:
-            self.prescriptions.approve(self.prescription_ids[row])
+            doctor = self.settings.doctor_name(required=True)
+            prescription_id = None
+            if 0 <= row < len(self.prescription_ids):
+                selected_id = self.prescription_ids[row]
+                if self.prescriptions.detail(selected_id)["status"] == "draft":
+                    prescription_id = selected_id
+            if prescription_id is None:
+                recommendation_id = self.recommendation.currentData()
+                if recommendation_id is None:
+                    raise ValueError("Chưa có bài thuốc được phê duyệt.")
+                prescription_id = self.prescriptions.create(
+                    int(recommendation_id), self._form_values(doctor)
+                )
+            self.prescriptions.approve(prescription_id)
+            self.doctor.setText(doctor)
         except ValueError as error:
             QMessageBox.warning(self, "Chưa thể phê duyệt", str(error))
             return
         self.refresh_prescriptions()
+        if prescription_id in self.prescription_ids:
+            self.table.selectRow(self.prescription_ids.index(prescription_id))
+        QMessageBox.information(
+            self,
+            "Đã lưu và phê duyệt",
+            "Đơn thuốc đã được lưu và bác sĩ phê duyệt.",
+        )
 
     def show_detail(self) -> None:
         row = self.table.currentRow()
         if row < 0:
             return
         detail = self.prescriptions.detail(self.prescription_ids[row])
+        self.diagnosis.setPlainText(detail["diagnosis"])
+        self.principle.setText(detail["treatment_principle"])
+        self.directions.setPlainText(detail["directions"])
+        self.modifications.setPlainText(detail["modifications"])
+        self.safety.setPlainText(detail["safety_notes"])
+        self.doctor.setText(detail["doctor_name"])
+        recommendation_index = self.recommendation.findData(detail["recommendation_id"])
+        if recommendation_index >= 0:
+            self.recommendation.setCurrentIndex(recommendation_index)
         items = "\n".join(
             f"• {item['herb_name']}: {item['dosage']:g} {item['unit']} — {item['role']}"
             for item in detail["items"]

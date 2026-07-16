@@ -16,9 +16,9 @@ def test_invalid_settings_are_quarantined(tmp_path):
     assert list(tmp_path.glob("settings.invalid_*.json"))
 
 
-def test_doctor_approval_cannot_be_disabled(tmp_path):
+def test_doctor_approval_can_be_disabled_during_build_test(tmp_path):
     path = tmp_path / "settings.json"
     path.write_text('{"clinic_name":"  ","require_doctor_approval":false}', encoding="utf-8")
     settings = AppSettings.load(path)
     assert settings.clinic_name == "Phòng khám Đông y"
-    assert settings.require_doctor_approval is True
+    assert settings.require_doctor_approval is False

@@ -7,7 +7,9 @@ from tcm_expert.core.config import AppSettings
 from tcm_expert.core.logging_config import configure_logging
 from tcm_expert.core.paths import AppPaths
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.database.settings_repository import SettingsRepository
 from tcm_expert.ui.main_window import MainWindow
+from tcm_expert.ui.settings_page import DoctorSetupDialog
 from tcm_expert.ui.theme import DARK_THEME
 
 
@@ -25,6 +27,12 @@ def main() -> int:
         if not database.health_check():
             raise RuntimeError("Không thể kết nối cơ sở dữ liệu")
         app.setStyleSheet(DARK_THEME)
+        doctor = SettingsRepository(database).doctor()
+        if settings.require_doctor_approval and (
+            not doctor.get("full_name") or not doctor.get("license_number")
+        ):
+            if DoctorSetupDialog(database).exec() != DoctorSetupDialog.DialogCode.Accepted:
+                return 0
         window = MainWindow(settings.clinic_name, database, database.reference_counts())
         window.show()
         return app.exec()

@@ -18,7 +18,7 @@ def database(tmp_path):
 
 def consultation(database: DatabaseManager) -> int:
     patient = PatientRepository(database).create(
-        {"code": "BN-DT-01", "full_name": "Bệnh nhân thử đơn"}
+        {"code": "BN105", "full_name": "Bệnh nhân thử đơn"}
     )
     visit = ConsultationRepository(database).create(patient["id"], "K-DT-01")
     return int(visit["id"])

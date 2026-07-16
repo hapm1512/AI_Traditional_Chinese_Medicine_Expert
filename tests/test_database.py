@@ -42,6 +42,8 @@ EXPECTED_TABLES = {
     "tongue_analyses",
     "audio_analyses",
     "clinical_decision_reports",
+    "doctor_profile",
+    "patient_code_groups",
 }
 
 
@@ -63,7 +65,7 @@ def test_database_initialization_is_idempotent(database):
         versions = [row[0] for row in connection.execute("SELECT version FROM schema_version")]
         integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
     assert EXPECTED_TABLES <= tables
-    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    assert versions == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     assert integrity == "ok"
 
 
@@ -78,7 +80,7 @@ def test_migrates_epic_one_database(tmp_path):
 
     DatabaseManager(path).initialize()
     with sqlite3.connect(path) as migrated:
-        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 10
+        assert migrated.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 11
         columns = {row[1] for row in migrated.execute("PRAGMA table_info(patients)")}
     assert {"allergies", "deleted_at", "identity_number"} <= columns
 
@@ -87,13 +89,13 @@ def test_patient_crud_and_audit(database):
     repository = PatientRepository(database)
     patient = repository.create(
         {
-            "code": "bn-001",
+            "code": "bn001",
             "full_name": "Nguyễn Văn An",
             "birth_date": "1988-05-20",
             "sex": "male",
         }
     )
-    assert patient["code"] == "BN-001"
+    assert patient["code"] == "BN001"
     updated = repository.update(patient["id"], {"phone": "0900000000"})
     assert updated["phone"] == "0900000000"
     assert repository.list("Văn An")[0]["id"] == patient["id"]

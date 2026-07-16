@@ -8,7 +8,7 @@ def test_recommender_never_prescribes_and_always_checks_safety(tmp_path: Path) -
     database = DatabaseManager(tmp_path / "recommend.db")
     database.initialize()
     patient = PatientRepository(database).create(
-        {"code": "BN-AI", "full_name": "Nguyễn Văn A", "allergies": "Nhân sâm"}
+        {"code": "BN103", "full_name": "Nguyễn Văn A", "allergies": "Nhân sâm"}
     )
     consultation = ConsultationRepository(database).create(
         patient["id"], "K-AI", chief_complaint="Mệt mỏi, ăn kém"

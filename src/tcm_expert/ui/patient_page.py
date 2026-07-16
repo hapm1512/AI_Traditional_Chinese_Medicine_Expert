@@ -1,6 +1,5 @@
-from datetime import datetime
-
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import QDate, QRegularExpression, Qt
+from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -21,23 +20,40 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from tcm_expert.database import ConsultationRepository, PatientRepository
+from tcm_expert.database import ConsultationRepository, PatientRepository, SettingsRepository
 from tcm_expert.database.manager import DatabaseManager
 
 
 class PatientDialog(QDialog):
     SEXES = (("", "Chưa xác định"), ("male", "Nam"), ("female", "Nữ"), ("other", "Khác"))
 
-    def __init__(self, parent: QWidget, patient: dict | None = None):
+    def __init__(self, parent: QWidget, database: DatabaseManager, patient: dict | None = None):
         super().__init__(parent)
         self.setWindowTitle("Thông tin bệnh nhân")
         self.setMinimumWidth(520)
         values = patient or {}
         form = QFormLayout(self)
-        self.code = QLineEdit(str(values.get("code", "")))
+        self.patients = PatientRepository(database)
+        groups = SettingsRepository(database).groups(active_only=True)
+        self.group = QComboBox()
+        for group in groups:
+            self.group.addItem(f"{group['name']} ({group['prefix']})", group["prefix"])
+        existing_code = str(values.get("code", ""))
+        existing_prefix = next(
+            (str(group["prefix"]) for group in groups if existing_code.startswith(group["prefix"])),
+            "",
+        )
+        if existing_prefix:
+            self.group.setCurrentIndex(max(0, self.group.findData(existing_prefix)))
+        self.number = QLineEdit(existing_code[len(existing_prefix) :] if existing_prefix else "")
+        self.number.setMaxLength(3)
+        self.number.setValidator(QRegularExpressionValidator(QRegularExpression(r"\d{0,3}")))
+        self.group.currentIndexChanged.connect(self._suggest_number)
+        if not patient:
+            self._suggest_number()
         self.name = QLineEdit(str(values.get("full_name", "")))
         self.birth = QDateEdit(calendarPopup=True)
-        self.birth.setDisplayFormat("yyyy-MM-dd")
+        self.birth.setDisplayFormat("dd/MM/yyyy")
         self.birth.setSpecialValueText("Chưa nhập")
         self.birth.setMinimumDate(QDate(1900, 1, 1))
         date = QDate.fromString(str(values.get("birth_date") or ""), "yyyy-MM-dd")
@@ -47,7 +63,11 @@ class PatientDialog(QDialog):
             self.sex.addItem(text, key)
         self.sex.setCurrentIndex(max(0, self.sex.findData(values.get("sex", ""))))
         self.phone = QLineEdit(str(values.get("phone", "")))
+        self.phone.setMaxLength(10)
+        self.phone.setValidator(QRegularExpressionValidator(QRegularExpression(r"\d{0,10}")))
         self.identity = QLineEdit(str(values.get("identity_number", "")))
+        self.identity.setMaxLength(12)
+        self.identity.setValidator(QRegularExpressionValidator(QRegularExpression(r"\d{0,12}")))
         self.address = QLineEdit(str(values.get("address", "")))
         self.emergency = QLineEdit(str(values.get("emergency_contact", "")))
         self.allergies = QTextEdit(str(values.get("allergies", "")))
@@ -55,7 +75,8 @@ class PatientDialog(QDialog):
         self.allergies.setMaximumHeight(70)
         self.notes.setMaximumHeight(70)
         for label, field in (
-            ("Mã bệnh nhân *", self.code),
+            ("Nhóm bệnh *", self.group),
+            ("Số thứ tự *", self.number),
             ("Họ tên *", self.name),
             ("Ngày sinh", self.birth),
             ("Giới tính", self.sex),
@@ -72,7 +93,14 @@ class PatientDialog(QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        buttons.button(QDialogButtonBox.StandardButton.Save).setText("Lưu")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Hủy")
         form.addRow(buttons)
+
+    def _suggest_number(self) -> None:
+        prefix = str(self.group.currentData() or "")
+        if prefix:
+            self.number.setText(self.patients.next_number(prefix))
 
     def values(self) -> dict[str, str]:
         birth_date = (
@@ -81,7 +109,7 @@ class PatientDialog(QDialog):
             else self.birth.date().toString("yyyy-MM-dd")
         )
         return {
-            "code": self.code.text(),
+            "code": f"{self.group.currentData() or ''}{self.number.text()}",
             "full_name": self.name.text(),
             "birth_date": birth_date,
             "sex": self.sex.currentData(),
@@ -95,22 +123,25 @@ class PatientDialog(QDialog):
 
 
 class ConsultationDialog(QDialog):
-    def __init__(self, parent: QWidget, consultation: dict | None = None):
+    def __init__(self, parent: QWidget, visit_code: str, consultation: dict | None = None):
         super().__init__(parent)
         self.setWindowTitle("Hồ sơ khám")
         self.setMinimumWidth(540)
         values = consultation or {}
+        self.workflow_status = str(values.get("status", "draft"))
         form = QFormLayout(self)
-        self.code = QLineEdit(str(values.get("visit_code") or self._new_code()))
-        self.status = QComboBox()
+        self.code = QLineEdit(str(values.get("visit_code") or visit_code))
+        self.code.setReadOnly(True)
+        self.patient_status = QComboBox()
         for key, text in (
-            ("draft", "Bản nháp"),
-            ("in_review", "Đang duyệt"),
-            ("approved", "Đã duyệt"),
-            ("closed", "Đã đóng"),
+            ("under_treatment", "Đang điều trị"),
+            ("monitoring", "Đang theo dõi"),
+            ("completed", "Đã kết thúc điều trị"),
         ):
-            self.status.addItem(text, key)
-        self.status.setCurrentIndex(max(0, self.status.findData(values.get("status", "draft"))))
+            self.patient_status.addItem(text, key)
+        self.patient_status.setCurrentIndex(
+            max(0, self.patient_status.findData(values.get("patient_status", "under_treatment")))
+        )
         self.complaint = QTextEdit(str(values.get("chief_complaint", "")))
         self.symptoms = QTextEdit(str(values.get("symptoms", "")))
         self.history = QTextEdit(str(values.get("western_history", "")))
@@ -119,7 +150,7 @@ class ConsultationDialog(QDialog):
             edit.setMaximumHeight(80)
         for label, field in (
             ("Mã lần khám *", self.code),
-            ("Trạng thái", self.status),
+            ("Tình trạng bệnh nhân", self.patient_status),
             ("Lý do khám", self.complaint),
             ("Triệu chứng", self.symptoms),
             ("Tiền sử Tây y", self.history),
@@ -131,16 +162,15 @@ class ConsultationDialog(QDialog):
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
+        buttons.button(QDialogButtonBox.StandardButton.Save).setText("Lưu")
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("Hủy")
         form.addRow(buttons)
-
-    @staticmethod
-    def _new_code() -> str:
-        return datetime.now().strftime("K-%Y%m%d-%H%M%S")
 
     def values(self) -> dict[str, str]:
         return {
             "visit_code": self.code.text(),
-            "status": self.status.currentData(),
+            "status": self.workflow_status,
+            "patient_status": self.patient_status.currentData(),
             "chief_complaint": self.complaint.toPlainText(),
             "symptoms": self.symptoms.toPlainText(),
             "western_history": self.history.toPlainText(),
@@ -176,7 +206,7 @@ class PatientPage(QWidget):
         splitter = QSplitter(Qt.Orientation.Vertical)
         self.patient_table = QTableWidget(0, 5)
         self.patient_table.setHorizontalHeaderLabels(
-            ("Mã", "Họ tên", "Ngày sinh", "Giới tính", "Điện thoại")
+            ("Mã BN", "Họ tên", "Ngày sinh", "Giới tính", "Điện thoại")
         )
         self.patient_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.patient_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -200,7 +230,7 @@ class PatientPage(QWidget):
         visit_layout.addLayout(visit_toolbar)
         self.visit_table = QTableWidget(0, 5)
         self.visit_table.setHorizontalHeaderLabels(
-            ("Mã khám", "Ngày", "Trạng thái", "Lý do khám", "Bác sĩ")
+            ("Mã lần khám", "Ngày", "Tình trạng", "Lý do khám", "Bác sĩ")
         )
         self.visit_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.visit_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -218,7 +248,7 @@ class PatientPage(QWidget):
             values = (
                 patient["code"],
                 patient["full_name"],
-                patient.get("birth_date") or "",
+                self._display_date(patient.get("birth_date")),
                 sex.get(patient.get("sex", ""), ""),
                 patient.get("phone") or "",
             )
@@ -242,16 +272,15 @@ class PatientPage(QWidget):
         rows = self.consultations.list_for_patient(self.patient_id)
         self.visit_table.setRowCount(len(rows))
         status = {
-            "draft": "Bản nháp",
-            "in_review": "Đang duyệt",
-            "approved": "Đã duyệt",
-            "closed": "Đã đóng",
+            "under_treatment": "Đang điều trị",
+            "monitoring": "Đang theo dõi",
+            "completed": "Đã kết thúc điều trị",
         }
         for row, visit in enumerate(rows):
             values = (
                 visit["visit_code"],
                 visit["created_at"],
-                status.get(visit["status"], visit["status"]),
+                status.get(visit["patient_status"], visit["patient_status"]),
                 visit.get("chief_complaint") or "",
                 visit.get("doctor_name") or "",
             )
@@ -268,7 +297,7 @@ class PatientPage(QWidget):
         QMessageBox.warning(self, "Không thể lưu", str(error))
 
     def add_patient(self) -> None:
-        dialog = PatientDialog(self)
+        dialog = PatientDialog(self, self.patients.database)
         if dialog.exec():
             try:
                 self.patients.create(dialog.values())
@@ -279,7 +308,7 @@ class PatientPage(QWidget):
     def edit_patient(self) -> None:
         if self.patient_id is None:
             return
-        dialog = PatientDialog(self, self.patients.get(self.patient_id))
+        dialog = PatientDialog(self, self.patients.database, self.patients.get(self.patient_id))
         if dialog.exec():
             try:
                 self.patients.update(self.patient_id, dialog.values())
@@ -301,7 +330,8 @@ class PatientPage(QWidget):
         if self.patient_id is None:
             QMessageBox.information(self, "Chưa chọn", "Hãy chọn bệnh nhân trước.")
             return
-        dialog = ConsultationDialog(self)
+        visit_code = self.consultations.next_visit_code(self.patient_id)
+        dialog = ConsultationDialog(self, visit_code)
         if dialog.exec():
             try:
                 values = dialog.values()
@@ -315,7 +345,8 @@ class PatientPage(QWidget):
         visit_id = self._selected_visit_id()
         if visit_id is None:
             return
-        dialog = ConsultationDialog(self, self.consultations.get(visit_id))
+        current = self.consultations.get(visit_id)
+        dialog = ConsultationDialog(self, current["visit_code"], current)
         if dialog.exec():
             try:
                 self.consultations.update(visit_id, dialog.values())
@@ -331,3 +362,8 @@ class PatientPage(QWidget):
         if answer == QMessageBox.StandardButton.Yes:
             self.consultations.delete(visit_id)
             self.refresh_consultations()
+
+    @staticmethod
+    def _display_date(value: str | None) -> str:
+        date = QDate.fromString(str(value or ""), "yyyy-MM-dd")
+        return date.toString("dd/MM/yyyy") if date.isValid() else ""
