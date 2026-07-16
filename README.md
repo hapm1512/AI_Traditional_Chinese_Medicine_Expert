@@ -1,5 +1,19 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 22 — Treatment Outcome Reports 2.7
+
+- Tổng hợp kết quả điều trị theo khoảng thời gian.
+- Thống kê bệnh nhân và số lần theo dõi.
+- Thống kê cải thiện, ổn định và nặng hơn.
+- Tính thay đổi điểm triệu chứng trung bình.
+- Ghi nhận số trường hợp phản ứng bất lợi.
+- Hiển thị chi tiết từng lần tái khám.
+- Lưu báo cáo dưới dạng ảnh chụp dữ liệu.
+- Bắt buộc bác sĩ nhập kết luận chuyên môn.
+- Lưu audit log khi xác nhận báo cáo.
+- AI không tự kết luận hiệu quả điều trị.
+- Phiên bản `2.7.0`.
+
 ## Epic 21 — Treatment Follow-up & Outcomes 2.6
 
 - Theo dõi điều trị theo từng hồ sơ khám.

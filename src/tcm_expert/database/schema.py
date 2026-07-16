@@ -585,4 +585,17 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_treatment_followup_consultation
             ON treatment_followups(consultation_id,followup_date DESC,id DESC);
     """),
+    (16, """
+        CREATE TABLE treatment_outcome_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            period_start TEXT NOT NULL,
+            period_end TEXT NOT NULL,
+            report_json TEXT NOT NULL,
+            doctor_conclusion TEXT NOT NULL,
+            reviewed_by TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX idx_outcome_report_period
+            ON treatment_outcome_reports(period_start,period_end,created_at DESC);
+    """),
 )

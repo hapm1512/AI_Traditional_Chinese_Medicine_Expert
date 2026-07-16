@@ -5,6 +5,7 @@ from tcm_expert.database.clinical_repository import ClinicalDecisionRepository
 from tcm_expert.database.formula_repository import FormulaRepository
 from tcm_expert.database.followup_repository import TreatmentFollowupRepository
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.database.outcome_report_repository import TreatmentOutcomeReportRepository
 from tcm_expert.database.prescription_repository import PrescriptionRepository
 from tcm_expert.database.repositories import (
     ConsultationRepository,
@@ -23,6 +24,7 @@ __all__ = [
     "DatabaseManager",
     "FormulaRepository",
     "TreatmentFollowupRepository",
+    "TreatmentOutcomeReportRepository",
     "PatientRepository",
     "PrescriptionRepository",
     "ReferenceRepository",
