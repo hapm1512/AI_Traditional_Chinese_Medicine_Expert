@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
     QDialog,
-    QFrame,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -22,6 +21,7 @@ from tcm_expert.ui.audio_page import AudioPage
 from tcm_expert.ui.appointment_page import AppointmentPage
 from tcm_expert.ui.clinical_support_page import ClinicalSupportPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
+from tcm_expert.ui.dashboard_page import DashboardPage
 from tcm_expert.ui.formula_page import FormulaPage
 from tcm_expert.ui.followup_page import FollowupPage
 from tcm_expert.ui.materia_medica_page import MateriaMedicaPage
@@ -122,7 +122,9 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.pages = QStackedWidget()
-        self.pages.addWidget(self._dashboard(clinic_name, database_counts or {}))
+        self.dashboard_page = DashboardPage(clinic_name, database)
+        self.dashboard_page.navigate.connect(self.open_page)
+        self.pages.addWidget(self.dashboard_page)
         self.pages.addWidget(PatientPage(database))
         self.pages.addWidget(DiagnosisPage(database))
         self.pages.addWidget(TonguePage(database))
@@ -212,7 +214,7 @@ class MainWindow(QMainWindow):
             button.setCheckable(True)
             self.menu_group.addButton(button, index)
             button.clicked.connect(
-                lambda _checked=False, page=page_index: self.pages.setCurrentIndex(page)
+                lambda _checked=False, page=page_index: self.open_page(page)
             )
             if index == 0:
                 button.setChecked(True)
@@ -221,48 +223,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel(f"Phiên bản {__display_version__}"))
         return side
 
-    def _dashboard(self, clinic_name: str, database_counts: dict[str, int]) -> QWidget:
-        content = QWidget()
-        layout = QVBoxLayout(content)
-        layout.setContentsMargins(36, 30, 36, 30)
-        title = QLabel(clinic_name)
-        title.setObjectName("title")
-        layout.addWidget(title)
-        subtitle = QLabel("Hệ thống hỗ trợ chuyên môn Y học cổ truyền")
-        subtitle.setObjectName("subtitle")
-        layout.addWidget(subtitle)
-        layout.addSpacing(24)
-        warning = QLabel("⚠ Kết quả chỉ tham khảo. Bác sĩ phải phê duyệt điều trị.")
-        warning.setObjectName("warning")
-        warning.setWordWrap(True)
-        layout.addWidget(warning)
-        layout.addSpacing(24)
-        layout.addWidget(
-            self._card(
-                "Nền tảng dữ liệu sẵn sàng",
-                "SQLite đã kết nối • Dữ liệu bệnh nhân lưu cục bộ",
-            )
-        )
-        summary = (
-            f"{database_counts.get('materia_medica', 0)} dược liệu • "
-            f"{database_counts.get('formulas', 0)} phương thuốc • "
-            f"{database_counts.get('tcm_syndromes', 0)} hội chứng mẫu"
-        )
-        layout.addWidget(self._card("Danh mục tham chiếu", summary))
-        layout.addStretch()
-        footer = QLabel("Copyright Hai Pham • Clinical Decision Support")
-        footer.setAlignment(Qt.AlignmentFlag.AlignRight)
-        footer.setObjectName("subtitle")
-        layout.addWidget(footer)
-        return content
-
-    @staticmethod
-    def _card(title: str, body: str) -> QFrame:
-        card = QFrame(objectName="card")
-        card.setMinimumHeight(110)
-        layout = QVBoxLayout(card)
-        heading = QLabel(title)
-        heading.setStyleSheet("font-size: 18px; font-weight: 600; color: #e4c982;")
-        layout.addWidget(heading)
-        layout.addWidget(QLabel(body))
-        return card
+    def open_page(self, page: int) -> None:
+        self.pages.setCurrentIndex(page)
+        button = self.menu_group.button(page)
+        if button is not None:
+            button.setChecked(True)

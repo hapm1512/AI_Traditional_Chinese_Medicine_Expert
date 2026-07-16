@@ -110,6 +110,53 @@ class FollowupAppointmentRepository:
                 f"Trạng thái {status}; người cập nhật {responsible}",
             )
 
+    def dismiss_overdue_notification(
+        self,
+        appointment_id: int,
+        *,
+        doctor_name: str,
+        now: str | None = None,
+    ) -> None:
+        """Close an overdue notification while preserving its audit history."""
+        doctor = doctor_name.strip()
+        if not doctor:
+            raise ValidationError("Bắt buộc có bác sĩ thực hiện")
+        current = datetime.fromisoformat(now) if now else datetime.now()
+        current = current.replace(second=0, microsecond=0)
+        with self.database.transaction() as connection:
+            row = connection.execute(
+                "SELECT scheduled_at,status FROM followup_appointments WHERE id=?",
+                (appointment_id,),
+            ).fetchone()
+            if row is None:
+                raise ValidationError("Lịch hẹn không tồn tại")
+            if row["status"] not in self.ACTIVE_STATUSES:
+                raise ValidationError("Thông báo này không còn hoạt động")
+            scheduled = datetime.fromisoformat(row["scheduled_at"])
+            if current - scheduled < timedelta(hours=3):
+                raise ValidationError("Chỉ được xóa thông báo trễ quá 3 giờ")
+            connection.execute(
+                """
+                UPDATE followup_appointments
+                SET status='cancelled',overdue_note=?,reviewed_by=?,reviewed_at=?,
+                    updated_at=CURRENT_TIMESTAMP
+                WHERE id=?
+                """,
+                (
+                    "Bác sĩ đã xóa thông báo trễ quá 3 giờ",
+                    doctor,
+                    current.isoformat(timespec="minutes"),
+                    appointment_id,
+                ),
+            )
+            self.database.audit(
+                connection,
+                "dismiss_overdue_appointment_notification",
+                "followup_appointment",
+                appointment_id,
+                f"Bác sĩ {doctor}; trễ quá 3 giờ; giữ lịch sử",
+            )
+
     def mark_reminded(
         self,
         appointment_id: int,

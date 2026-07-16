@@ -3,6 +3,7 @@
 from tcm_expert.database.audio_repository import AudioAnalysisRepository
 from tcm_expert.database.appointment_repository import FollowupAppointmentRepository
 from tcm_expert.database.clinical_repository import ClinicalDecisionRepository
+from tcm_expert.database.dashboard_repository import DashboardRepository
 from tcm_expert.database.formula_repository import FormulaRepository
 from tcm_expert.database.followup_repository import TreatmentFollowupRepository
 from tcm_expert.database.manager import DatabaseManager
@@ -22,6 +23,7 @@ __all__ = [
     "ConsultationRepository",
     "AudioAnalysisRepository",
     "ClinicalDecisionRepository",
+    "DashboardRepository",
     "DatabaseManager",
     "FormulaRepository",
     "FollowupAppointmentRepository",

@@ -122,6 +122,8 @@ class AppointmentPage(QWidget):
         update.clicked.connect(self.update_status)
         remind = QPushButton("Đánh dấu đã nhắc")
         remind.clicked.connect(self.mark_reminded)
+        dismiss_overdue = QPushButton("Xóa thông báo trễ")
+        dismiss_overdue.clicked.connect(self.dismiss_overdue_notification)
         self.filter = QComboBox()
         self.filter.addItem("Tất cả trạng thái", None)
         for text, value in self.STATUS_ITEMS:
@@ -133,6 +135,7 @@ class AppointmentPage(QWidget):
         self.view_filter.currentIndexChanged.connect(self.refresh_table)
         actions.addWidget(create)
         actions.addWidget(remind)
+        actions.addWidget(dismiss_overdue)
         actions.addStretch()
         actions.addWidget(QLabel("Trạng thái"))
         actions.addWidget(self.status)
@@ -281,6 +284,33 @@ class AppointmentPage(QWidget):
             return
         self.refresh_table()
         QMessageBox.information(self, "Đã cập nhật", "Đã ghi nhận nhắc lịch.")
+
+    def dismiss_overdue_notification(self) -> None:
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self.row_ids):
+            QMessageBox.warning(self, "Chưa chọn", "Hãy chọn một thông báo trễ.")
+            return
+        answer = QMessageBox.question(
+            self,
+            "Xác nhận xóa",
+            (
+                "Chỉ xóa thông báo trễ quá 3 giờ.\n"
+                "Lịch sử vẫn được giữ trong hệ thống.\n\n"
+                "Bác sĩ xác nhận xóa thông báo này?"
+            ),
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            self.appointments.dismiss_overdue_notification(
+                self.row_ids[row],
+                doctor_name=self.settings.doctor_name(required=True),
+            )
+        except ValidationError as error:
+            QMessageBox.warning(self, "Không thể xóa", str(error))
+            return
+        self.refresh_table()
+        QMessageBox.information(self, "Đã xóa", "Đã đóng thông báo trễ.")
 
     def review_case(self, action: str) -> None:
         row = self.table.currentRow()

@@ -1,5 +1,24 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 25 — Clinic Operations Dashboard 3.0
+
+- Cho phép bác sĩ xóa thông báo trễ quá ba giờ.
+- Bắt buộc bác sĩ xác nhận trước khi xóa.
+- Đóng thông báo nhưng giữ toàn bộ lịch sử.
+- Hiển thị quyết định duyệt là `Đã được duyệt`.
+- Nâng cấp trang Tổng quan thành dashboard vận hành.
+- Hiển thị lịch hẹn hôm nay và lịch quá giờ.
+- Thống kê lịch chưa nhắc trong bảy ngày.
+- Thống kê hồ sơ điều trị và theo dõi.
+- Hiển thị tổng số bệnh nhân đang quản lý.
+- Ưu tiên lịch quá giờ trước lịch trong ngày.
+- Mở nhanh trang bệnh nhân và lịch tái khám.
+- Tự làm mới dashboard mỗi lần mở.
+- Cho phép bác sĩ làm mới thủ công.
+- Dashboard chỉ hỗ trợ vận hành phòng khám.
+- Không tự đưa ra quyết định chuyên môn.
+- Phiên bản `3.0.2`.
+
 ## Epic 24 — Appointment Reminders 2.9
 
 - Tách riêng ngày hẹn và giờ hẹn.

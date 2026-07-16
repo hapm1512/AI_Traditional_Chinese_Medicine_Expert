@@ -133,7 +133,7 @@ class ClinicalSupportPage(QWidget):
         labels = {"low": "Thấp", "moderate": "Trung bình", "high": "Cao"}
         decisions = {
             "pending": "Chờ bác sĩ",
-            "accepted": "Đã chấp nhận",
+            "accepted": "Đã được duyệt",
             "rejected": "Đã từ chối",
             "edited": "Đã chỉnh sửa",
         }
