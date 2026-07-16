@@ -1,5 +1,16 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 27 — Nhật ký hệ thống và truy vết
+
+- Chỉ quản trị viên được xem nhật ký.
+- Theo dõi đăng nhập và đăng xuất.
+- Theo dõi thao tác lưu, khóa và xóa.
+- Lọc theo người dùng, thao tác và thời gian.
+- Xem chi tiết từng bản ghi chỉ đọc.
+- Không cho sửa hoặc xóa nhật ký.
+- Xuất báo cáo CSV mã hóa UTF-8.
+- Phiên bản Epic 27: `3.2.0`.
+
 ## Epic 26 — Quản lý người dùng và phân quyền
 
 - Đăng nhập bằng tài khoản quản trị, bác sĩ hoặc y tá.

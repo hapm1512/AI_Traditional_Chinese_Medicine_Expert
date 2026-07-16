@@ -64,7 +64,11 @@ class UserRepository:
                 (row["id"],),
             )
             cursor = connection.execute("INSERT INTO user_sessions(user_id) VALUES(?)", (row["id"],))
-            return UserSession(int(row["id"]), row["username"], row["full_name"], row["role"], int(cursor.lastrowid))
+            session = UserSession(int(row["id"]), row["username"], row["full_name"], row["role"], int(cursor.lastrowid))
+            from tcm_expert.security import set_current_user
+            set_current_user(session)
+            self.database.audit(connection, "login", "user_session", int(cursor.lastrowid), row["role"])
+            return session
 
     def logout(self, session: UserSession, reason: str = "manual") -> None:
         with self.database.transaction() as connection:
@@ -72,6 +76,7 @@ class UserRepository:
                 "UPDATE user_sessions SET logged_out_at=CURRENT_TIMESTAMP,logout_reason=? WHERE id=? AND logged_out_at IS NULL",
                 (reason, session.session_id),
             )
+            self.database.audit(connection, "logout", "user_session", session.session_id, reason)
 
     def list_users(self) -> list:
         with self.database.transaction() as connection:

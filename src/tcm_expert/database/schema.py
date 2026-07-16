@@ -692,4 +692,12 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         ALTER TABLE audit_log ADD COLUMN actor_user_id INTEGER REFERENCES app_users(id);
         ALTER TABLE audit_log ADD COLUMN actor_username TEXT NOT NULL DEFAULT '';
     """),
+    (23, """
+        CREATE INDEX idx_audit_log_created
+            ON audit_log(created_at DESC,id DESC);
+        CREATE INDEX idx_audit_log_actor
+            ON audit_log(actor_username,created_at DESC,id DESC);
+        CREATE INDEX idx_audit_log_entity
+            ON audit_log(entity_type,action,created_at DESC,id DESC);
+    """),
 )

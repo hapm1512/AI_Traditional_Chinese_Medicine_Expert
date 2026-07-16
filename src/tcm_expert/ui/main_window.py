@@ -34,6 +34,7 @@ from tcm_expert.database.user_repository import UserRepository
 from tcm_expert.security import UserSession, set_current_user
 from tcm_expert.ui.login_dialog import ChangePasswordDialog, LoginDialog
 from tcm_expert.ui.user_management_page import UserManagementPage
+from tcm_expert.ui.audit_log_page import AuditLogPage
 
 
 class AppointmentAlertDialog(QDialog):
@@ -149,6 +150,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(OutcomeReportPage(database))
         self.pages.addWidget(SettingsPage(database))
         self.pages.addWidget(UserManagementPage(database))
+        self.pages.addWidget(AuditLogPage(database))
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
         self.setCentralWidget(root)
@@ -255,6 +257,7 @@ class MainWindow(QMainWindow):
                 "Báo cáo kết quả",
                 "Cài đặt",
                 "Quản lý người dùng",
+                "Nhật ký hệ thống",
             )
         ):
             button = QPushButton(text)
@@ -290,7 +293,7 @@ class MainWindow(QMainWindow):
 
     def apply_permissions(self) -> None:
         allowed = {
-            "admin": set(range(14)),
+            "admin": set(range(15)),
             "doctor": set(range(13)),
             "nurse": {0, 1, 2, 3, 4, 9, 10},
         }[self.session.role]
@@ -303,7 +306,7 @@ class MainWindow(QMainWindow):
 
     def open_page(self, page: int) -> None:
         allowed = {
-            "admin": set(range(14)),
+            "admin": set(range(15)),
             "doctor": set(range(13)),
             "nurse": {0, 1, 2, 3, 4, 9, 10},
         }[self.session.role]
