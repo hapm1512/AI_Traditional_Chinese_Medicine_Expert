@@ -1,5 +1,17 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 19 — AI Clinical Workflow 2.4
+
+- Tích hợp đề xuất AI theo từng hồ sơ khám.
+- Lưu lịch sử đề xuất độc lập theo thời gian.
+- Hiển thị nguồn mô-đun và độ tin cậy.
+- Hiển thị căn cứ và cảnh báo an toàn.
+- Bác sĩ chấp nhận hoặc từ chối rõ ràng.
+- Từ chối bắt buộc ghi nhận lý do.
+- Mọi quyết định được lưu audit log.
+- Đề xuất AI không trở thành đơn thuốc.
+- Phiên bản `2.4.0`.
+
 ## Epic 18 — Connected AI Providers 2.3
 
 - Kết nối TCMChat qua API tương thích OpenAI.

@@ -4,6 +4,7 @@ from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -60,8 +61,10 @@ class ClinicalSupportPage(QWidget):
         selectors.addWidget(generate)
         selectors.addWidget(ai_generate)
         layout.addLayout(selectors)
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(("Thời gian", "Đầy đủ", "Nguy cơ", "Trạng thái"))
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(
+            ("Thời gian", "Nguồn", "Đầy đủ", "Tin cậy", "Nguy cơ", "Quyết định")
+        )
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -76,8 +79,11 @@ class ClinicalSupportPage(QWidget):
         self.reviewer.setText(self.settings.doctor_name())
         approve = QPushButton("Bác sĩ phê duyệt")
         approve.clicked.connect(self.review)
+        reject = QPushButton("Bác sĩ từ chối")
+        reject.clicked.connect(self.reject)
         approval.addWidget(self.reviewer, 1)
         approval.addWidget(approve)
+        approval.addWidget(reject)
         layout.addLayout(approval)
         self.refresh_patients()
 
@@ -125,12 +131,22 @@ class ClinicalSupportPage(QWidget):
         self.report_ids = [int(row["id"]) for row in rows]
         self.table.setRowCount(len(rows))
         labels = {"low": "Thấp", "moderate": "Trung bình", "high": "Cao"}
+        decisions = {
+            "pending": "Chờ bác sĩ",
+            "accepted": "Đã chấp nhận",
+            "rejected": "Đã từ chối",
+            "edited": "Đã chỉnh sửa",
+        }
         for index, row in enumerate(rows):
             values = (
                 row["created_at"],
+                "AI tham khảo" if row["report_type"] == "ai" else "Rule Engine",
                 f"{float(row['completeness_score']) * 100:.0f}%",
+                f"{float(row['ai_confidence']) * 100:.0f}%"
+                if row["report_type"] == "ai"
+                else "—",
                 labels.get(row["risk_level"], row["risk_level"]),
-                "Đã duyệt" if row["status"] == "reviewed" else "Bản nháp",
+                decisions.get(row["doctor_decision"], row["doctor_decision"]),
             )
             for column, value in enumerate(values):
                 self.table.setItem(index, column, QTableWidgetItem(str(value)))
@@ -166,7 +182,7 @@ class ClinicalSupportPage(QWidget):
             "confidence": proposal.confidence,
             "status": proposal.decision.value,
         }
-        self.reports.create(int(consultation_id), report)
+        self.reports.create_ai(int(consultation_id), report)
         self.refresh_reports()
         if self.table.rowCount():
             self.table.selectRow(0)
@@ -188,6 +204,9 @@ class ClinicalSupportPage(QWidget):
             )
             lines = [
                 f"ĐỀ XUẤT THAM KHẢO — {status}",
+                f"ĐỘ TIN CẬY: {float(proposal.get('confidence', 0)) * 100:.0f}%",
+                f"QUYẾT ĐỊNH: {saved.get('doctor_decision', 'pending').upper()}",
+                *([f"LÝ DO: {saved['decision_reason']}"] if saved.get("decision_reason") else []),
                 "",
                 proposal["summary"],
                 "",
@@ -196,6 +215,9 @@ class ClinicalSupportPage(QWidget):
                 "",
                 "TRẠNG THÁI MÔ-ĐUN:",
                 *[f"• {item}" for item in proposal["provider_trace"]],
+                "",
+                "CẢNH BÁO:",
+                *([f"• {item}" for item in proposal.get("warnings", [])] or ["• Chưa có"]),
             ]
             self.detail.setPlainText("\n".join(lines))
             return
@@ -253,3 +275,26 @@ class ClinicalSupportPage(QWidget):
         if report_id in self.report_ids:
             self.table.selectRow(self.report_ids.index(report_id))
         QMessageBox.information(self, "Đã phê duyệt", "Bác sĩ đã phê duyệt báo cáo.")
+
+    def reject(self) -> None:
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self.report_ids):
+            QMessageBox.warning(self, "Thiếu dữ liệu", "Hãy chọn báo cáo.")
+            return
+        reason, accepted = QInputDialog.getMultiLineText(
+            self, "Lý do từ chối", "Nhận xét bắt buộc của bác sĩ:"
+        )
+        if not accepted:
+            return
+        report_id = self.report_ids[row]
+        try:
+            doctor = self.settings.doctor_name(required=True)
+            self.reviewer.setText(doctor)
+            self.reports.decide(report_id, doctor, "rejected", reason)
+        except ValidationError as error:
+            QMessageBox.warning(self, "Không thể từ chối", str(error))
+            return
+        self.refresh_reports()
+        if report_id in self.report_ids:
+            self.table.selectRow(self.report_ids.index(report_id))
+        QMessageBox.information(self, "Đã ghi nhận", "Bác sĩ đã từ chối đề xuất.")

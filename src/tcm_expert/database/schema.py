@@ -548,4 +548,17 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         ALTER TABLE ai_settings ADD COLUMN symmap_url TEXT NOT NULL DEFAULT '';
         ALTER TABLE ai_settings ADD COLUMN timeout_seconds INTEGER NOT NULL DEFAULT 20;
     """),
+    (14, """
+        ALTER TABLE clinical_decision_reports ADD COLUMN report_type TEXT NOT NULL
+            DEFAULT 'rule' CHECK(report_type IN ('rule','ai'));
+        ALTER TABLE clinical_decision_reports ADD COLUMN ai_confidence REAL NOT NULL
+            DEFAULT 0 CHECK(ai_confidence BETWEEN 0 AND 1);
+        ALTER TABLE clinical_decision_reports ADD COLUMN doctor_decision TEXT NOT NULL
+            DEFAULT 'pending' CHECK(doctor_decision IN
+            ('pending','accepted','rejected','edited'));
+        ALTER TABLE clinical_decision_reports ADD COLUMN decision_reason TEXT NOT NULL
+            DEFAULT '';
+        CREATE INDEX idx_clinical_report_type
+            ON clinical_decision_reports(consultation_id,report_type,created_at DESC);
+    """),
 )
