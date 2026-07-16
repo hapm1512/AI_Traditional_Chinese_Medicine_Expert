@@ -1,5 +1,19 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 23 — Follow-up Appointment Scheduling 2.8
+
+- Quản lý lịch hẹn tái khám theo hồ sơ.
+- Ghi ngày giờ, lý do và chuẩn bị.
+- Theo dõi xác nhận, hoàn tất và hủy.
+- Ghi nhận trường hợp bệnh nhân không đến.
+- Lọc lịch hẹn theo từng trạng thái.
+- Ngăn tạo trùng lịch cho cùng hồ sơ.
+- Lưu người phụ trách mọi cập nhật.
+- Lưu audit log khi tạo và đổi trạng thái.
+- Lịch hẹn không thay thế chỉ định bác sĩ.
+- Sửa duyệt báo cáo cũ còn quyết định chờ.
+- Phiên bản `2.8.1`.
+
 ## Epic 22 — Treatment Outcome Reports 2.7
 
 - Tổng hợp kết quả điều trị theo khoảng thời gian.

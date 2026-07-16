@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 from tcm_expert import __display_version__
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.ui.audio_page import AudioPage
+from tcm_expert.ui.appointment_page import AppointmentPage
 from tcm_expert.ui.clinical_support_page import ClinicalSupportPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
 from tcm_expert.ui.formula_page import FormulaPage
@@ -53,6 +54,7 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(PrescriptionPage(database))
         self.pages.addWidget(ClinicalSupportPage(database))
         self.pages.addWidget(FollowupPage(database))
+        self.pages.addWidget(AppointmentPage(database))
         self.pages.addWidget(OutcomeReportPage(database))
         self.pages.addWidget(SettingsPage(database))
         layout.addWidget(self._sidebar())
@@ -82,6 +84,7 @@ class MainWindow(QMainWindow):
                 "Đơn thuốc bác sĩ",
                 "Hỗ trợ quyết định",
                 "Theo dõi điều trị",
+                "Lịch hẹn tái khám",
                 "Báo cáo kết quả",
                 "Cài đặt",
             )

@@ -598,4 +598,23 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_outcome_report_period
             ON treatment_outcome_reports(period_start,period_end,created_at DESC);
     """),
+    (17, """
+        CREATE TABLE followup_appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            consultation_id INTEGER NOT NULL,
+            scheduled_at TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'scheduled'
+                CHECK(status IN ('scheduled','confirmed','completed','cancelled','no_show')),
+            reason TEXT NOT NULL DEFAULT '',
+            note TEXT NOT NULL DEFAULT '',
+            responsible_by TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(consultation_id) REFERENCES consultations(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_followup_appointment_time
+            ON followup_appointments(scheduled_at,status,id);
+        CREATE INDEX idx_followup_appointment_consultation
+            ON followup_appointments(consultation_id,scheduled_at DESC,id DESC);
+    """),
 )

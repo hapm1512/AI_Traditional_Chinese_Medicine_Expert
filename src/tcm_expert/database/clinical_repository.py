@@ -93,11 +93,11 @@ class ClinicalDecisionRepository:
                 """UPDATE clinical_decision_reports
                    SET status='reviewed',reviewed_by=?,reviewed_at=CURRENT_TIMESTAMP,
                        doctor_decision=?,decision_reason=?
-                   WHERE id=? AND status='draft'""",
+                   WHERE id=? AND doctor_decision='pending'""",
                 (reviewer, decision, reason, report_id),
             )
             if cursor.rowcount != 1:
-                raise ValidationError("Báo cáo không tồn tại hoặc đã duyệt.")
+                raise ValidationError("Báo cáo không tồn tại hoặc bác sĩ đã quyết định.")
             self.database.audit(
                 connection, "doctor_decision", "clinical_decision_report", report_id,
                 f"{reviewer}: {decision}; {reason}"

@@ -47,3 +47,20 @@ def test_ai_rejection_preserves_reason(tmp_path):
     saved = repository.get(report_id)
     assert saved["doctor_decision"] == "rejected"
     assert saved["decision_reason"] == "Cần bổ sung Thiết chẩn"
+
+
+def test_legacy_reviewed_report_with_pending_decision_can_be_approved(tmp_path):
+    database, visit_id, report = make_report(tmp_path)
+    repository = ClinicalDecisionRepository(database)
+    report_id = repository.create_ai(visit_id, report)
+    with database.transaction() as connection:
+        connection.execute(
+            "UPDATE clinical_decision_reports SET status='reviewed' WHERE id=?",
+            (report_id,),
+        )
+
+    repository.review(report_id, "BS Nguyễn Văn A")
+
+    saved = repository.get(report_id)
+    assert saved["status"] == "reviewed"
+    assert saved["doctor_decision"] == "accepted"

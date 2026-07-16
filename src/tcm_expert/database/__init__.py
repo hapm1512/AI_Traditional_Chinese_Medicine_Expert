@@ -1,6 +1,7 @@
 """SQLite persistence layer."""
 
 from tcm_expert.database.audio_repository import AudioAnalysisRepository
+from tcm_expert.database.appointment_repository import FollowupAppointmentRepository
 from tcm_expert.database.clinical_repository import ClinicalDecisionRepository
 from tcm_expert.database.formula_repository import FormulaRepository
 from tcm_expert.database.followup_repository import TreatmentFollowupRepository
@@ -23,6 +24,7 @@ __all__ = [
     "ClinicalDecisionRepository",
     "DatabaseManager",
     "FormulaRepository",
+    "FollowupAppointmentRepository",
     "TreatmentFollowupRepository",
     "TreatmentOutcomeReportRepository",
     "PatientRepository",
