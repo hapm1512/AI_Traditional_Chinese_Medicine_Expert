@@ -5,6 +5,8 @@ from tcm_expert.services.classic_formula_sync import ClassicFormulaSync, SyncRes
 from tcm_expert.services.clinical_decision_support import ClinicalDecisionSupport
 from tcm_expert.services.formula_recommender import FormulaRecommender
 from tcm_expert.services.ollama_formula_translator import OllamaFormulaTranslator
+from tcm_expert.services.materia_medica_sync import HerbSyncResult, MateriaMedicaSync
+from tcm_expert.services.ollama_herb_translator import OllamaHerbTranslator
 from tcm_expert.services.tongue_analyzer import TongueAnalysisResult, TongueAnalyzer
 
 __all__ = [
@@ -14,6 +16,9 @@ __all__ = [
     "ClassicFormulaSync",
     "FormulaRecommender",
     "OllamaFormulaTranslator",
+    "OllamaHerbTranslator",
+    "MateriaMedicaSync",
+    "HerbSyncResult",
     "TongueAnalyzer",
     "TongueAnalysisResult",
     "SyncResult",

@@ -722,4 +722,46 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_formula_translation_status
             ON formula_translations(status,language,formula_id);
     """),
+    (25, """
+        ALTER TABLE materia_medica ADD COLUMN source_key TEXT NOT NULL DEFAULT '';
+        ALTER TABLE materia_medica ADD COLUMN source_payload TEXT NOT NULL DEFAULT '';
+        ALTER TABLE materia_medica ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'ready'
+            CHECK(sync_status IN ('ready','incomplete'));
+        ALTER TABLE materia_medica ADD COLUMN updated_at TEXT NOT NULL DEFAULT '';
+        CREATE UNIQUE INDEX idx_materia_source_key
+            ON materia_medica(source_key) WHERE source_key <> '';
+
+        CREATE TABLE materia_medica_translations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            herb_id INTEGER NOT NULL UNIQUE,
+            language TEXT NOT NULL DEFAULT 'vi',
+            name_vi TEXT NOT NULL DEFAULT '',
+            nature TEXT NOT NULL DEFAULT '',
+            flavor TEXT NOT NULL DEFAULT '',
+            meridians TEXT NOT NULL DEFAULT '',
+            functions TEXT NOT NULL DEFAULT '',
+            modern_effects TEXT NOT NULL DEFAULT '',
+            combinations TEXT NOT NULL DEFAULT '',
+            processing TEXT NOT NULL DEFAULT '',
+            toxicity TEXT NOT NULL DEFAULT '',
+            contraindications TEXT NOT NULL DEFAULT '',
+            cautions TEXT NOT NULL DEFAULT '',
+            model TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'draft'
+                CHECK(status IN ('draft','approved')),
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(herb_id) REFERENCES materia_medica(id) ON DELETE CASCADE
+        );
+        CREATE INDEX idx_materia_translation_status
+            ON materia_medica_translations(status,language,herb_id);
+
+        CREATE TABLE formula_herb_links (
+            formula_id INTEGER NOT NULL,
+            herb_id INTEGER NOT NULL,
+            source_name TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY(formula_id,herb_id),
+            FOREIGN KEY(formula_id) REFERENCES formulas(id) ON DELETE CASCADE,
+            FOREIGN KEY(herb_id) REFERENCES materia_medica(id) ON DELETE CASCADE
+        );
+    """),
 )

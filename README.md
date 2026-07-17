@@ -1,5 +1,47 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 32 — Hàng đợi kiểm duyệt dược liệu
+
+- Thêm nút `Thêm dược liệu` trên thanh công cụ.
+- Bác sĩ và quản trị viên được nhập dược liệu.
+- Kiểm tra trùng mã hoặc tên tiếng Việt.
+- Dược liệu nhập tay luôn lưu dạng bản nháp.
+- Dữ liệu nhập mới có nguồn mặc định `Sưu tầm`.
+- Ghi người tạo vào nhật ký hệ thống.
+- Thống kê riêng chờ dịch, bản nháp và đã duyệt.
+- Bác sĩ kiểm duyệt tuần tự toàn bộ bản nháp.
+- Lưu rồi tự mở vị thuốc kế tiếp.
+- Không tự động phê duyệt dữ liệu AI.
+- Chỉ bác sĩ được quyền phê duyệt.
+- Quản trị viên chỉ được lưu bản nháp.
+- Ghi tài khoản kiểm duyệt vào nhật ký.
+- Không yêu cầu đăng nhập lại khi cập nhật dữ liệu.
+- Phiên bản Epic 32: `3.8.1`.
+
+## Epic 31 — Đồng bộ dữ liệu dược liệu
+
+- Đồng bộ danh mục dược liệu nguồn mở.
+- Không xóa dữ liệu đang có.
+- Trùng mã hoặc tên sẽ cập nhật.
+- Lưu tên Việt, Trung và Latin.
+- Lưu tính vị và quy kinh.
+- Lưu công năng, phối ngũ, bào chế.
+- Lưu độc tính và chống chỉ định.
+- Tìm kiếm và lọc trạng thái dịch.
+- Qwen dịch tuần tự toàn bộ qua đêm.
+- Lưu ngay sau từng vị thuốc.
+- Tự tiếp tục phần còn lại.
+- Bản dịch luôn lưu trạng thái nháp.
+- Bác sĩ chỉnh sửa trước phê duyệt.
+- Tự liên kết dược liệu với cổ phương.
+- Không tự đề xuất hoặc đổi liều.
+- Dịch từng vị chạy nền, không khóa giao diện.
+- Không khóa phiên khi dịch nền đang chạy.
+- Tự khóa lại sau khi dịch hoàn tất.
+- Cho phép sửa toàn bộ thông tin dược liệu.
+- Sửa mã, tên Việt/Trung/Latin và nhóm.
+- Phiên bản Epic 31: `3.7.3`.
+
 ## Epic 30 — Dịch thử cổ phương bằng Ollama/Qwen
 
 - Kết nối Ollama tại máy cục bộ.

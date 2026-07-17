@@ -178,6 +178,13 @@ class MainWindow(QMainWindow):
         return super().eventFilter(watched, event)
 
     def check_session_timeout(self) -> None:
+        # Tác vụ dịch nền hợp lệ giữ phiên hoạt động xuyên đêm.
+        for index in range(self.pages.count()):
+            page = self.pages.widget(index)
+            checker = getattr(page, "has_active_background_task", None)
+            if callable(checker) and checker():
+                self.last_activity = datetime.now()
+                return
         if (datetime.now() - self.last_activity).total_seconds() >= 15 * 60:
             self.lock_session()
 

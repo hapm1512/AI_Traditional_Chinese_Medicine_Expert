@@ -101,6 +101,9 @@ class FormulaPage(QWidget):
         self.refresh_catalogue()
         self.refresh_patients()
 
+    def has_active_background_task(self) -> bool:
+        return self.translation_worker is not None and self.translation_worker.isRunning()
+
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)
         self.refresh_catalogue()

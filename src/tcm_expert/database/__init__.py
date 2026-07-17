@@ -7,6 +7,7 @@ from tcm_expert.database.dashboard_repository import DashboardRepository
 from tcm_expert.database.formula_repository import FormulaRepository
 from tcm_expert.database.followup_repository import TreatmentFollowupRepository
 from tcm_expert.database.manager import DatabaseManager
+from tcm_expert.database.materia_medica_repository import MateriaMedicaRepository
 from tcm_expert.database.audit_repository import AuditRepository
 from tcm_expert.database.outcome_report_repository import TreatmentOutcomeReportRepository
 from tcm_expert.database.prescription_repository import PrescriptionRepository
@@ -28,6 +29,7 @@ __all__ = [
     "DashboardRepository",
     "DatabaseManager",
     "FormulaRepository",
+    "MateriaMedicaRepository",
     "FollowupAppointmentRepository",
     "TreatmentFollowupRepository",
     "TreatmentOutcomeReportRepository",

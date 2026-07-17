@@ -6,6 +6,16 @@ from tcm_expert.ai.adapters import ChatTranslator, HttpKnowledgeProvider, OpenAI
 from tcm_expert.ai.workflow import AIWorkflow
 from tcm_expert.database.settings_repository import SettingsRepository
 
+# Giữ đường dẫn import cũ cho các bản kiểm thử Epic 20.
+__all__ = ["create_ai_workflow", "test_ai_connections"]
+
+
+def test_ai_connections(database: Any) -> list[dict[str, Any]]:
+    """Tương thích đường dẫn import cũ, tránh vòng lặp module."""
+    from tcm_expert.ai.health import test_ai_connections as health_check
+
+    return health_check(database)
+
 
 def create_ai_workflow(database: Any) -> AIWorkflow:
     settings = SettingsRepository(database).ai_settings()
