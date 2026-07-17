@@ -1,5 +1,20 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 36 — AI phân tích Tứ chẩn bằng Ollama/Qwen
+
+- Gọi Qwen cục bộ qua Ollama khi bác sĩ yêu cầu.
+- Tổng hợp dữ liệu Vọng, Văn, Vấn và Thiết.
+- Chỉ chọn hội chứng trong danh mục hệ thống.
+- Loại mọi căn cứ không xuất hiện trong hồ sơ.
+- Giới hạn tối đa năm gợi ý tham khảo.
+- Không tự xác nhận chẩn đoán hoặc chứng chính.
+- Không kê đơn, liều dùng hoặc gia giảm.
+- Tự dùng luật nội bộ khi Ollama không hoạt động.
+- Hiển thị rõ nguồn Qwen hoặc luật nội bộ.
+- Phân tích nền, không khóa giao diện ứng dụng.
+- Bác sĩ kiểm tra và quyết định toàn bộ.
+- Phiên bản Epic 36: `4.2.0`.
+
 ## Epic 35 — AI gợi ý bài thuốc có kiểm soát
 
 - Chỉ gợi ý sau khi bác sĩ xác nhận hội chứng.

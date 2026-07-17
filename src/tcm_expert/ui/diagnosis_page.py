@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -30,7 +30,10 @@ from tcm_expert.database import (
     SyndromeRepository,
 )
 from tcm_expert.database.manager import DatabaseManager
-from tcm_expert.services.syndrome_reasoner import suggest
+from tcm_expert.services.ollama_syndrome_analyzer import (
+    OllamaSyndromeAnalyzer,
+    SyndromeAnalysisOutcome,
+)
 
 METHODS = (
     ("vong", "Vọng chẩn", "Sắc diện, hình thể, lưỡi..."),
@@ -42,6 +45,19 @@ METHODS = (
 
 class DiagnosticEntryDialog(QMessageBox):
     """Kept out intentionally; entries are edited inline for faster clinical input."""
+
+
+class SyndromeAnalysisWorker(QThread):
+    completed = Signal(object)
+
+    def __init__(self, clinical_text: str, syndromes: list[dict]):
+        super().__init__()
+        self.clinical_text = clinical_text
+        self.syndromes = syndromes
+
+    def run(self) -> None:
+        outcome = OllamaSyndromeAnalyzer().analyze(self.clinical_text, self.syndromes)
+        self.completed.emit(outcome)
 
 
 class MethodEditor(QWidget):
@@ -615,6 +631,7 @@ class SyndromeEditor(QWidget):
         super().__init__()
         self.repository = repository
         self.consultation_id: int | None = None
+        self._analysis_worker: SyndromeAnalysisWorker | None = None
         self.syndromes = repository.catalogue()
         layout = QVBoxLayout(self)
         warning = QLabel("Gợi ý biện chứng chỉ hỗ trợ tham khảo; bác sĩ chịu trách nhiệm xác nhận.")
@@ -654,17 +671,21 @@ class SyndromeEditor(QWidget):
         form.addRow(checks)
         layout.addLayout(form)
         buttons = QHBoxLayout()
-        analyse = QPushButton("Gợi ý từ Tứ chẩn")
-        analyse.clicked.connect(self.analyse)
+        self.analyse_button = QPushButton("AI phân tích Tứ chẩn")
+        self.analyse_button.clicked.connect(self.analyse)
         save = QPushButton("Lưu biện chứng")
         save.clicked.connect(self.save)
         remove = QPushButton("Xóa mục chọn")
         remove.clicked.connect(self.remove)
-        buttons.addWidget(analyse)
+        buttons.addWidget(self.analyse_button)
         buttons.addWidget(save)
         buttons.addWidget(remove)
         buttons.addStretch()
         layout.addLayout(buttons)
+        self.analysis_status = QLabel("AI cục bộ: Ollama/Qwen; tự dùng luật khi mất kết nối.")
+        self.analysis_status.setObjectName("subtitle")
+        self.analysis_status.setWordWrap(True)
+        layout.addWidget(self.analysis_status)
         self.ai_results = QTableWidget(0, 6)
         self.ai_results.setHorizontalHeaderLabels(
             ("Gợi ý AI", "Bát cương", "Tạng phủ", "Căn cứ", "Phù hợp", "Trạng thái")
@@ -723,7 +744,25 @@ class SyndromeEditor(QWidget):
         if self.consultation_id is None:
             QMessageBox.information(self, "Chưa chọn", "Hãy chọn lần khám trước.")
             return
-        results = suggest(self.repository.clinical_text(self.consultation_id), self.syndromes)
+        if self._analysis_worker is not None and self._analysis_worker.isRunning():
+            return
+        clinical_text = self.repository.clinical_text(self.consultation_id)
+        self.analyse_button.setEnabled(False)
+        self.analyse_button.setText("Qwen đang phân tích...")
+        self.analysis_status.setText("Đang gửi dữ liệu Tứ chẩn tới Ollama trên máy này...")
+        self._analysis_worker = SyndromeAnalysisWorker(clinical_text, self.syndromes)
+        self._analysis_worker.completed.connect(self._show_analysis)
+        self._analysis_worker.finished.connect(self._clear_analysis_worker)
+        self._analysis_worker.finished.connect(self._analysis_worker.deleteLater)
+        self._analysis_worker.start()
+
+    def _clear_analysis_worker(self) -> None:
+        self._analysis_worker = None
+
+    def _show_analysis(self, outcome: SyndromeAnalysisOutcome) -> None:
+        self.analyse_button.setEnabled(True)
+        self.analyse_button.setText("AI phân tích Tứ chẩn")
+        results = outcome.results
         self.ai_results.setRowCount(len(results))
         for row_index, result in enumerate(results):
             values = (
@@ -732,20 +771,33 @@ class SyndromeEditor(QWidget):
                 result["organ_systems"],
                 "; ".join(result["matched"]),
                 f"{round(result['confidence'] * 100)}%",
-                "Chờ bác sĩ duyệt",
+                "Qwen • Chờ bác sĩ duyệt"
+                if outcome.source == "ollama"
+                else "Luật nội bộ • Chờ bác sĩ duyệt",
             )
             for column, value in enumerate(values):
                 cell = QTableWidgetItem(str(value))
                 cell.setData(Qt.ItemDataRole.UserRole, result)
                 self.ai_results.setItem(row_index, column, cell)
         if not results:
+            self.analysis_status.setText(
+                "Chưa có kết quả hợp lệ. " + (outcome.fallback_reason or "")
+            )
             QMessageBox.information(self, "Chưa đủ căn cứ", "Chưa tìm thấy mẫu phù hợp rõ ràng.")
             return
         self.ai_results.selectRow(0)
+        if outcome.source == "ollama":
+            self.analysis_status.setText(
+                f"AI đang hoạt động: Ollama/{outcome.model}. Kết quả chờ bác sĩ duyệt."
+            )
+        else:
+            self.analysis_status.setText(
+                "Ollama không hoạt động; đã dùng luật nội bộ. " + outcome.fallback_reason
+            )
         QMessageBox.information(
             self,
             "Phân tích hoàn tất",
-            f"Có {len(results)} gợi ý tham khảo. Bác sĩ chọn, kiểm tra và xác nhận.",
+            f"Có {len(results)} gợi ý tham khảo. Bác sĩ kiểm tra và xác nhận.",
         )
 
     def load_ai_result(self) -> None:
