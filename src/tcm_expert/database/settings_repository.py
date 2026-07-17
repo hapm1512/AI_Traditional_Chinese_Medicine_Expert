@@ -69,6 +69,7 @@ class SettingsRepository:
             "mode": mode,
             "chat_base_url": self._endpoint(values.get("chat_base_url")),
             "chat_model": optional_text(values.get("chat_model"), 100) or "tcmchat",
+            "vision_model": optional_text(values.get("vision_model"), 100) or "qwen2.5vl:7b",
             "opentcm_url": self._endpoint(values.get("opentcm_url")),
             "tcmbank_url": self._endpoint(values.get("tcmbank_url")),
             "symmap_url": self._endpoint(values.get("symmap_url")),
@@ -78,7 +79,7 @@ class SettingsRepository:
             raise ValidationError("Chế độ kết nối cần địa chỉ TCMChat.")
         with self.database.transaction() as connection:
             connection.execute(
-                """UPDATE ai_settings SET mode=?,chat_base_url=?,chat_model=?,
+                """UPDATE ai_settings SET mode=?,chat_base_url=?,chat_model=?,vision_model=?,
                    opentcm_url=?,tcmbank_url=?,symmap_url=?,timeout_seconds=?,
                    updated_at=CURRENT_TIMESTAMP WHERE id=1""",
                 tuple(data.values()),

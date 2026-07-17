@@ -114,6 +114,7 @@ class SettingsPage(QWidget):
         self.ai_mode.setCurrentIndex(max(0, self.ai_mode.findData(current.get("mode", "offline"))))
         self.chat_base_url = QLineEdit(str(current.get("chat_base_url", "")))
         self.chat_model = QLineEdit(str(current.get("chat_model", "tcmchat")))
+        self.vision_model = QLineEdit(str(current.get("vision_model", "qwen2.5vl:7b")))
         self.opentcm_url = QLineEdit(str(current.get("opentcm_url", "")))
         self.tcmbank_url = QLineEdit(str(current.get("tcmbank_url", "")))
         self.symmap_url = QLineEdit(str(current.get("symmap_url", "")))
@@ -124,6 +125,7 @@ class SettingsPage(QWidget):
         form.addRow("Chế độ", self.ai_mode)
         form.addRow("Máy chủ TCMChat", self.chat_base_url)
         form.addRow("Mô hình", self.chat_model)
+        form.addRow("Mô hình phân tích lưỡi", self.vision_model)
         form.addRow("OpenTCM GraphRAG", self.opentcm_url)
         form.addRow("TCMBank", self.tcmbank_url)
         form.addRow("SymMap", self.symmap_url)
@@ -145,6 +147,7 @@ class SettingsPage(QWidget):
                     "mode": self.ai_mode.currentData(),
                     "chat_base_url": self.chat_base_url.text(),
                     "chat_model": self.chat_model.text(),
+                    "vision_model": self.vision_model.text(),
                     "opentcm_url": self.opentcm_url.text(),
                     "tcmbank_url": self.tcmbank_url.text(),
                     "symmap_url": self.symmap_url.text(),

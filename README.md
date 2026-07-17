@@ -1,5 +1,25 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 38 — AI phân tích lưỡi
+
+- Phân tích ảnh lưỡi bằng Ollama Vision cục bộ.
+- Mặc định dùng mô hình `qwen2.5vl:7b`.
+- Mô tả màu lưỡi, rêu, dấu răng, nứt.
+- Không suy luận bệnh hoặc đưa chẩn đoán.
+- Tự dùng thuật toán offline khi AI lỗi.
+- Lưu rõ nguồn AI và mô hình phân tích.
+- Chạy nền, không khóa giao diện ứng dụng.
+- Bác sĩ kiểm tra và duyệt mọi kết quả.
+- Chờ tối đa mười phút khi Vision tải lần đầu.
+- Liên kết bệnh nhân với hồ sơ Tứ chẩn.
+- Hiển thị Lần đầu và các lần tái khám.
+- Tự tạo lần khám đầu khi bắt đầu Tứ chẩn.
+- AI lưỡi nhận đúng ID hồ sơ khám.
+- Nhập lời kể bệnh nhân ngay khi tiếp nhận.
+- Chuyển tự động sang hồ sơ Hỗ trợ chẩn đoán.
+- Kết hợp lời kể với kết quả AI Tứ chẩn.
+- Phiên bản Epic 38: `4.4.4`.
+
 ## Epic 37 — Qwen gợi ý bài thuốc có kiểm soát
 
 - Chỉ chạy sau khi bác sĩ xác nhận hội chứng.

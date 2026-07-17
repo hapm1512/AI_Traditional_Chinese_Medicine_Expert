@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 import shutil
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtGui import QPixmap, QShowEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -25,7 +26,28 @@ from PySide6.QtWidgets import (
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.database.settings_repository import SettingsRepository
 from tcm_expert.database.tongue_repository import TongueAnalysisRepository
-from tcm_expert.services.tongue_analyzer import TongueAnalyzer
+from tcm_expert.services.ollama_tongue_analyzer import (
+    OllamaTongueAnalyzer,
+    TongueAnalysisOutcome,
+)
+
+
+class TongueAnalysisWorker(QThread):
+    completed = Signal(object)
+    failed = Signal(str)
+
+    def __init__(self, image_path: Path, model: str, timeout: int):
+        super().__init__()
+        self.image_path = image_path
+        self.model = model
+        self.timeout = timeout
+
+    def run(self) -> None:
+        try:
+            outcome = OllamaTongueAnalyzer(self.model, self.timeout).analyze(self.image_path)
+            self.completed.emit(outcome)
+        except (OSError, ValueError) as error:
+            self.failed.emit(str(error))
 
 
 class TonguePage(QWidget):
@@ -34,8 +56,10 @@ class TonguePage(QWidget):
         self.database = database
         self.repository = TongueAnalysisRepository(database)
         self.settings = SettingsRepository(database)
-        self.analyzer = TongueAnalyzer()
         self.source_path: Path | None = None
+        self.analysis_path: Path | None = None
+        self.analysis_consultation_id: int | None = None
+        self.worker: TongueAnalysisWorker | None = None
         self.analysis_id: int | None = None
         self.embedded = embedded
         self._build_ui()
@@ -53,17 +77,17 @@ class TonguePage(QWidget):
         toolbar = QHBoxLayout()
         self.consultation = QComboBox()
         self.consultation.currentIndexChanged.connect(self.refresh_history)
-        choose = QPushButton("Chọn ảnh")
-        choose.clicked.connect(self.choose_image)
-        analyze = QPushButton("AI đánh giá")
-        analyze.clicked.connect(self.analyze_image)
+        self.choose_button = QPushButton("Chọn ảnh")
+        self.choose_button.clicked.connect(self.choose_image)
+        self.analyze_button = QPushButton("AI phân tích lưỡi")
+        self.analyze_button.clicked.connect(self.analyze_image)
         self.consultation_label = QLabel("Mã BN / lần khám")
         self.consultation_label.setVisible(not self.embedded)
         self.consultation.setVisible(not self.embedded)
         toolbar.addWidget(self.consultation_label)
         toolbar.addWidget(self.consultation, 1)
-        toolbar.addWidget(choose)
-        toolbar.addWidget(analyze)
+        toolbar.addWidget(self.choose_button)
+        toolbar.addWidget(self.analyze_button)
         root.addLayout(toolbar)
 
         body = QHBoxLayout()
@@ -75,10 +99,12 @@ class TonguePage(QWidget):
         left.addWidget(self.preview)
         self.quality = QLabel("Chất lượng: —")
         self.confidence = QLabel("Độ tin cậy AI: —")
+        self.source = QLabel("Nguồn phân tích: —")
         self.issues = QLabel("Lỗi ảnh: —")
         self.issues.setWordWrap(True)
         left.addWidget(self.quality)
         left.addWidget(self.confidence)
+        left.addWidget(self.source)
         left.addWidget(self.issues)
         body.addLayout(left, 1)
 
@@ -157,20 +183,61 @@ class TonguePage(QWidget):
         if not consultation_id or not self.source_path:
             QMessageBox.warning(self, "Thiếu dữ liệu", "Chọn hồ sơ khám và ảnh lưỡi.")
             return
+        settings = self.settings.ai_settings()
+        self.analysis_path = self.source_path
+        self.analysis_consultation_id = int(consultation_id)
+        self._set_analyzing(True)
+        self.source.setText("Nguồn phân tích: Đang gọi Ollama Vision…")
+        self.worker = TongueAnalysisWorker(
+            self.analysis_path,
+            str(settings.get("vision_model", "qwen2.5vl:7b")),
+            # Vision 7B may need several minutes on its first CPU/GPU load.
+            max(600, int(settings.get("timeout_seconds", 120))),
+        )
+        self.worker.completed.connect(self.analysis_completed)
+        self.worker.failed.connect(self.analysis_failed)
+        self.worker.finished.connect(lambda: self._set_analyzing(False))
+        self.worker.start()
+
+    def analysis_completed(self, outcome: TongueAnalysisOutcome) -> None:
         try:
-            result = self.analyzer.analyze(self.source_path)
+            result = outcome.result
+            if self.analysis_path is None:
+                raise ValueError("Không còn ảnh nguồn để lưu")
             image_dir = self.database.path.parent / "tongue_images"
             image_dir.mkdir(parents=True, exist_ok=True)
-            stored = image_dir / f"{result.image_sha256}{self.source_path.suffix.lower()}"
+            stored = image_dir / f"{result.image_sha256}{self.analysis_path.suffix.lower()}"
             if not stored.exists():
-                shutil.copy2(self.source_path, stored)
+                shutil.copy2(self.analysis_path, stored)
+            consultation_id = self.analysis_consultation_id
+            if not consultation_id:
+                raise ValueError("Hồ sơ khám không còn được chọn")
             self.analysis_id = self.repository.create(
                 consultation_id, str(stored), result.as_dict()
             )
             self._apply_result(result.as_dict())
+            if outcome.source == "ollama":
+                self.source.setText(f"Nguồn phân tích: Ollama Vision — {outcome.model}")
+            else:
+                self.source.setText("Nguồn phân tích: Offline dự phòng")
+                QMessageBox.information(
+                    self,
+                    "Đã dùng chế độ dự phòng",
+                    "Ollama Vision chưa hoạt động. Ứng dụng đã dùng phân tích offline.\n"
+                    f"Chi tiết: {outcome.fallback_reason}",
+                )
             self.refresh_history()
         except (OSError, ValueError) as error:
             QMessageBox.critical(self, "Không thể phân tích", str(error))
+
+    def analysis_failed(self, message: str) -> None:
+        self.source.setText("Nguồn phân tích: Lỗi")
+        QMessageBox.critical(self, "Không thể phân tích", message)
+
+    def _set_analyzing(self, active: bool) -> None:
+        self.choose_button.setEnabled(not active)
+        self.analyze_button.setEnabled(not active)
+        self.analyze_button.setText("Đang phân tích…" if active else "AI phân tích lưỡi")
 
     def _apply_result(self, result: dict) -> None:
         self._set_combo(self.tongue_color, result["tongue_color"])
@@ -257,6 +324,16 @@ class TonguePage(QWidget):
         self.quality.setText(f"Chất lượng: {row['quality_score'] * 100:.1f}%")
         self.confidence.setText(f"Độ tin cậy AI: {row['ai_confidence'] * 100:.1f}%")
         self.issues.setText("Lỗi ảnh: " + (row["quality_issues"].replace("\n", "; ") or "Không"))
+        try:
+            detail = json.loads(row["ai_detail"] or "{}")
+        except json.JSONDecodeError:
+            detail = {}
+        if detail.get("analysis_source") == "ollama_vision":
+            self.source.setText(
+                f"Nguồn phân tích: Ollama Vision — {detail.get('vision_model', 'không rõ')}"
+            )
+        else:
+            self.source.setText("Nguồn phân tích: Offline dự phòng")
 
     def _show_image(self, path: Path) -> None:
         pixmap = QPixmap(str(path))

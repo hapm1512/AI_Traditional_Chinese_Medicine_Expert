@@ -880,14 +880,16 @@ class DiagnosisPage(QWidget):
         self.summary = QGroupBox("Thông tin tổng hợp")
         form = QFormLayout(self.summary)
         self.complaint = QTextEdit()
+        self.symptoms = QTextEdit()
         self.history = QTextEdit()
         self.assessment = QTextEdit()
-        for field in (self.complaint, self.history, self.assessment):
+        for field in (self.complaint, self.symptoms, self.history, self.assessment):
             field.setMaximumHeight(64)
         self.doctor = QLineEdit()
         self.doctor.setReadOnly(True)
         self.status = QLabel("—")
         form.addRow("Lý do khám", self.complaint)
+        form.addRow("Tình trạng BN mô tả", self.symptoms)
         form.addRow("Tiền sử", self.history)
         form.addRow("Nhận định sơ bộ", self.assessment)
         form.addRow("Bác sĩ", self.doctor)
@@ -954,17 +956,23 @@ class DiagnosisPage(QWidget):
         self.visit.addItem("— Chọn lần khám —", None)
         if patient_id is not None:
             rows = self.consultations.list_for_patient(int(patient_id))
+            if not rows:
+                # Opening a registered patient in diagnosis starts visit one.
+                # This gives every examination and AI result a real visit ID.
+                rows = [self.consultations.create(int(patient_id), "")]
             for number, item in enumerate(reversed(rows), 1):
                 self.visit.addItem(
-                    f"Lần khám {number} • {item['visit_code']} • {item['created_at']}", item["id"]
+                    f"{self._visit_name(number)} • {item['visit_code']} • {item['created_at']}",
+                    item["id"],
                 )
-            if not rows:
-                self.visit.addItem("Chưa có hồ sơ khám", None)
-            else:
-                index = self.visit.findData(selected_visit)
-                self.visit.setCurrentIndex(index if index >= 1 else 1)
+            index = self.visit.findData(selected_visit)
+            self.visit.setCurrentIndex(index if index >= 1 else 1)
         self.visit.blockSignals(False)
         self.load_consultation()
+
+    @staticmethod
+    def _visit_name(number: int) -> str:
+        return "Lần đầu" if number == 1 else f"Tái khám {number - 1}"
 
     def load_consultation(self) -> None:
         consultation_id = self.visit.currentData()
@@ -974,7 +982,13 @@ class DiagnosisPage(QWidget):
         for editor in self.editors:
             editor.set_consultation(int(consultation_id) if has_consultation else None)
         if not has_consultation:
-            for field in (self.complaint, self.history, self.assessment, self.doctor):
+            for field in (
+                self.complaint,
+                self.symptoms,
+                self.history,
+                self.assessment,
+                self.doctor,
+            ):
                 field.clear()
             if has_patient:
                 self.doctor.setText(self.settings.doctor_name())
@@ -984,6 +998,7 @@ class DiagnosisPage(QWidget):
             return
         item = self.consultations.get(int(consultation_id))
         self.complaint.setPlainText(item.get("chief_complaint", ""))
+        self.symptoms.setPlainText(item.get("symptoms", ""))
         self.history.setPlainText(item.get("western_history", ""))
         self.assessment.setPlainText(item.get("assessment", ""))
         self.doctor.setText(item.get("doctor_name", ""))
@@ -1004,6 +1019,7 @@ class DiagnosisPage(QWidget):
             doctor = self.settings.doctor_name(required=True)
             values = {
                 "chief_complaint": self.complaint.toPlainText(),
+                "symptoms": self.symptoms.toPlainText(),
                 "western_history": self.history.toPlainText(),
                 "assessment": self.assessment.toPlainText(),
                 "doctor_name": doctor,

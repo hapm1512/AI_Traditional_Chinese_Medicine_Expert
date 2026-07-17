@@ -69,8 +69,8 @@ class SyndromeRepository:
     def clinical_text(self, consultation_id: int) -> str:
         with self.database.transaction() as connection:
             consultation = connection.execute(
-                """SELECT chief_complaint,symptoms,observation,listening_smelling,
-                          inquiry,palpation,assessment
+                """SELECT chief_complaint,symptoms,western_history,observation,
+                          listening_smelling,inquiry,palpation,assessment
                    FROM consultations WHERE id=?""",
                 (consultation_id,),
             ).fetchone()

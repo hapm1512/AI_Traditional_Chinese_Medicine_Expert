@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -44,12 +45,25 @@ def parse_birth_date(value: str) -> str:
 class PatientDialog(QDialog):
     SEXES = (("", "Chưa xác định"), ("male", "Nam"), ("female", "Nữ"), ("other", "Khác"))
 
-    def __init__(self, parent: QWidget, database: DatabaseManager, patient: dict | None = None):
+    def __init__(
+        self,
+        parent: QWidget,
+        database: DatabaseManager,
+        patient: dict | None = None,
+        intake: dict | None = None,
+    ):
         super().__init__(parent)
         self.setWindowTitle("Thông tin bệnh nhân")
         self.setMinimumWidth(520)
         values = patient or {}
-        form = QFormLayout(self)
+        intake_values = intake or {}
+        root = QVBoxLayout(self)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        form = QFormLayout(content)
+        scroll.setWidget(content)
+        root.addWidget(scroll)
         self.patients = PatientRepository(database)
         groups = SettingsRepository(database).groups(active_only=True)
         self.group = QComboBox()
@@ -91,6 +105,11 @@ class PatientDialog(QDialog):
         self.notes = QTextEdit(str(values.get("notes", "")))
         self.allergies.setMaximumHeight(70)
         self.notes.setMaximumHeight(70)
+        self.complaint = QTextEdit(str(intake_values.get("chief_complaint", "")))
+        self.symptoms = QTextEdit(str(intake_values.get("symptoms", "")))
+        self.western_history = QTextEdit(str(intake_values.get("western_history", "")))
+        for field in (self.complaint, self.symptoms, self.western_history):
+            field.setMaximumHeight(70)
         for label, field in (
             ("Nhóm bệnh *", self.group),
             ("Số thứ tự *", self.number),
@@ -103,6 +122,9 @@ class PatientDialog(QDialog):
             ("Liên hệ khẩn cấp", self.emergency),
             ("Dị ứng", self.allergies),
             ("Ghi chú", self.notes),
+            ("Lý do đến khám", self.complaint),
+            ("Tình trạng BN mô tả", self.symptoms),
+            ("Bệnh sử, thuốc đang dùng", self.western_history),
         ):
             form.addRow(label, field)
         buttons = QDialogButtonBox(
@@ -143,6 +165,13 @@ class PatientDialog(QDialog):
             self.birth.selectAll()
             return
         super().accept()
+
+    def intake_values(self) -> dict[str, str]:
+        return {
+            "chief_complaint": self.complaint.toPlainText(),
+            "symptoms": self.symptoms.toPlainText(),
+            "western_history": self.western_history.toPlainText(),
+        }
 
 
 class ConsultationDialog(QDialog):
@@ -299,9 +328,16 @@ class PatientPage(QWidget):
             "monitoring": "Đang theo dõi",
             "completed": "Đã kết thúc điều trị",
         }
+        total = len(rows)
         for row, visit in enumerate(rows):
+            chronological_number = total - row
+            visit_name = (
+                "Lần đầu"
+                if chronological_number == 1
+                else f"Tái khám {chronological_number - 1}"
+            )
             values = (
-                visit["visit_code"],
+                f"{visit_name} • {visit['visit_code']}",
                 visit["created_at"],
                 status.get(visit["patient_status"], visit["patient_status"]),
                 visit.get("chief_complaint") or "",
@@ -323,7 +359,8 @@ class PatientPage(QWidget):
         dialog = PatientDialog(self, self.patients.database)
         if dialog.exec():
             try:
-                self.patients.create(dialog.values())
+                patient = self.patients.create(dialog.values())
+                self.consultations.create(patient["id"], "", **dialog.intake_values())
                 self.refresh_patients()
             except Exception as error:
                 self._error(error)
@@ -331,11 +368,25 @@ class PatientPage(QWidget):
     def edit_patient(self) -> None:
         if self.patient_id is None:
             return
-        dialog = PatientDialog(self, self.patients.database, self.patients.get(self.patient_id))
+        visits = self.consultations.list_for_patient(self.patient_id)
+        current_visit = visits[0] if visits else None
+        dialog = PatientDialog(
+            self,
+            self.patients.database,
+            self.patients.get(self.patient_id),
+            current_visit,
+        )
         if dialog.exec():
             try:
                 self.patients.update(self.patient_id, dialog.values())
+                if current_visit:
+                    self.consultations.update(current_visit["id"], dialog.intake_values())
+                else:
+                    self.consultations.create(
+                        self.patient_id, "", **dialog.intake_values()
+                    )
                 self.refresh_patients()
+                self.refresh_consultations()
             except Exception as error:
                 self._error(error)
 

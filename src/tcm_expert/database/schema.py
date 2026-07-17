@@ -776,4 +776,8 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
         CREATE INDEX idx_app_user_positions_position
             ON app_user_positions(position,user_id);
     """),
+    (27, """
+        ALTER TABLE ai_settings ADD COLUMN vision_model TEXT NOT NULL
+            DEFAULT 'qwen2.5vl:7b';
+    """),
 )
