@@ -27,9 +27,18 @@ class FormulaRepository:
                      AND (?='' OR f.category=?)
                      AND (?='%%' OR f.name LIKE ? OR f.name_cn LIKE ? OR f.code LIKE ?
                           OR f.indications LIKE ? OR f.treatment_principle LIKE ?
-                          OR ft.name LIKE ? OR ft.indications LIKE ?)
+                          OR ft.name LIKE ? OR ft.indications LIKE ?
+                          OR EXISTS (
+                              SELECT 1 FROM formula_herb_links l
+                              JOIN materia_medica h ON h.id=l.herb_id
+                              JOIN materia_medica_translations mt ON mt.herb_id=h.id
+                              WHERE l.formula_id=f.id AND mt.status='approved'
+                                AND (h.code LIKE ? OR h.name_vi LIKE ? OR h.name_cn LIKE ?
+                                     OR mt.name_vi LIKE ?)
+                          ))
                    GROUP BY f.id ORDER BY f.name""",
-                (category, category, term, term, term, term, term, term, term, term),
+                (category, category, term, term, term, term, term, term, term, term,
+                 term, term, term, term),
             ).fetchall()
         return [dict(row) for row in rows]
 
@@ -136,8 +145,18 @@ class FormulaRepository:
                    WHERE fi.formula_id=? ORDER BY fi.id""",
                 (formula_id,),
             ).fetchall()
+            linked_herbs = connection.execute(
+                """SELECT h.id,h.code,h.name_vi,h.name_cn,mt.name_vi AS translated_name
+                   FROM formula_herb_links l
+                   JOIN materia_medica h ON h.id=l.herb_id
+                   JOIN materia_medica_translations mt ON mt.herb_id=h.id
+                   WHERE l.formula_id=? AND mt.status='approved'
+                   ORDER BY COALESCE(NULLIF(mt.name_vi,''),h.name_vi,h.name_cn)""",
+                (formula_id,),
+            ).fetchall()
         result = dict(formula)
         result["ingredients"] = [dict(row) for row in ingredients]
+        result["linked_herbs"] = [dict(row) for row in linked_herbs]
         with self.database.transaction() as connection:
             translation = connection.execute(
                 "SELECT * FROM formula_translations WHERE formula_id=?", (formula_id,)

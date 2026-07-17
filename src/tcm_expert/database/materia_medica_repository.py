@@ -29,11 +29,20 @@ class MateriaMedicaRepository:
                    LEFT JOIN materia_medica_translations mt ON mt.herb_id=h.id
                    WHERE (?='%%' OR h.code LIKE ? OR h.name_vi LIKE ? OR h.name_cn LIKE ?
                           OR h.pharmaceutical_name LIKE ? OR h.functions LIKE ?
-                          OR h.meridians LIKE ? OR mt.name_vi LIKE ? OR mt.functions LIKE ?)
+                          OR h.meridians LIKE ? OR mt.name_vi LIKE ? OR mt.functions LIKE ?
+                          OR EXISTS (
+                              SELECT 1 FROM formula_herb_links l
+                              JOIN formulas f ON f.id=l.formula_id
+                              JOIN formula_translations ft ON ft.formula_id=f.id
+                              WHERE l.herb_id=h.id AND f.active=1 AND ft.status='approved'
+                                AND (f.code LIKE ? OR f.name LIKE ? OR f.name_cn LIKE ?
+                                     OR ft.name LIKE ?)
+                          ))
                      AND (?='' OR hc.name=?)
                      AND (?='' OR COALESCE(mt.status,'pending')=?)
                    ORDER BY COALESCE(NULLIF(mt.name_vi,''),NULLIF(h.name_vi,''),h.name_cn)""",
                 (term, term, term, term, term, term, term, term, term,
+                 term, term, term, term,
                  category, category, status, status),
             ).fetchall()
         return [dict(row) for row in rows]
@@ -51,9 +60,12 @@ class MateriaMedicaRepository:
                 "SELECT * FROM materia_medica_translations WHERE herb_id=?", (herb_id,)
             ).fetchone()
             formulas = connection.execute(
-                """SELECT f.code,f.name,f.name_cn FROM formula_herb_links l
+                """SELECT f.id,f.code,f.name,f.name_cn,ft.name AS translated_name
+                   FROM formula_herb_links l
                    JOIN formulas f ON f.id=l.formula_id
-                   WHERE l.herb_id=? ORDER BY f.name LIMIT 100""", (herb_id,)
+                   JOIN formula_translations ft ON ft.formula_id=f.id
+                   WHERE l.herb_id=? AND f.active=1 AND ft.status='approved'
+                   ORDER BY COALESCE(NULLIF(ft.name,''),f.name) LIMIT 100""", (herb_id,)
             ).fetchall()
         result = dict(row)
         result["translation"] = dict(translation) if translation else None

@@ -66,7 +66,7 @@ class MateriaMedicaPage(QWidget):
 
         filters = QHBoxLayout()
         self.query = QLineEdit()
-        self.query.setPlaceholderText("Tên Việt/Trung/Latin, công năng, quy kinh...")
+        self.query.setPlaceholderText("Tên dược liệu, công năng hoặc cổ phương...")
         self.category = QComboBox()
         self.category.addItem("Tất cả nhóm", "")
         for name in self.repository.categories():
@@ -219,8 +219,9 @@ class MateriaMedicaPage(QWidget):
         tr = item.get("translation") or {}
         value = lambda key: tr.get(key) or item.get(key) or "Chưa có dữ liệu"
         formulas = "\n".join(
-            f"  - {f['name']} {f['name_cn']}" for f in item["formulas"]
-        ) or "  Chưa liên kết bài thuốc"
+            f"  - {f['code']} — {f['translated_name'] or f['name']} {f['name_cn']}"
+            for f in item["formulas"]
+        ) or "  Chưa có cổ phương đã duyệt liên kết"
         self.detail.setPlainText(
             f"{value('name_vi')}  {item['name_cn']}\n{item['pharmaceutical_name']}\n\n"
             f"• Tính vị: {value('nature')}, {value('flavor')}\n"
@@ -232,7 +233,7 @@ class MateriaMedicaPage(QWidget):
             f"• Độc tính: {value('toxicity')}\n\n"
             f"⚠ CHỐNG CHỈ ĐỊNH\n{value('contraindications')}\n\n"
             f"⚠ LƯU Ý\n{value('cautions')}\n\n"
-            f"• Liên kết cổ phương:\n{formulas}\n\n"
+            f"• Cổ phương đã duyệt chứa vị này:\n{formulas}\n\n"
             f"• Nguồn: {item['reference_source']}\n"
             f"• Trạng thái: {tr.get('status', 'chờ dịch')}"
         )

@@ -143,7 +143,7 @@ class FormulaPage(QWidget):
         layout = QVBoxLayout(page)
         filters = QHBoxLayout()
         self.query = QLineEdit()
-        self.query.setPlaceholderText("Tên, mã, chỉ định, pháp trị...")
+        self.query.setPlaceholderText("Tên bài thuốc, chỉ định hoặc dược liệu...")
         self.category = QComboBox()
         self.category.addItem("Tất cả nhóm", "")
         for name in self.formulas.categories():
@@ -452,6 +452,10 @@ class FormulaPage(QWidget):
             or "Chưa có thành phần."
         )
         alerts = self.formulas.safety_alerts(self.current_formula_id)
+        linked_herbs = "\n".join(
+            f"• {x['code']} — {x['translated_name'] or x['name_vi']} {x['name_cn']}"
+            for x in formula.get("linked_herbs", [])
+        ) or "Chưa có dược liệu đã duyệt liên kết."
         safety = "\n".join(
             f"• {x['herb_name']} ↔ {x['interacts_with']}: {x['effect']}" for x in alerts
         )
@@ -480,6 +484,7 @@ class FormulaPage(QWidget):
             f"• Cách dùng: {formula['directions']}\n"
             f"• Gia giảm: {formula['modifications']}\n\n"
             f"THÀNH PHẦN\n{ingredients}\n\n"
+            f"DƯỢC LIỆU ĐÃ DUYỆT LIÊN KẾT\n{linked_herbs}\n\n"
             f"⚠ CHỐNG CHỈ ĐỊNH\n{formula['contraindications']}\n\n"
             f"⚠ TƯƠNG TÁC / LƯU Ý\n{formula['interactions']}\n"
             f"{safety or '• Chưa ghi nhận dữ liệu tương tác.'}\n\n"

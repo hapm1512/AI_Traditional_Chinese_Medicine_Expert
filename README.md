@@ -1,5 +1,25 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 33 — Liên kết dược liệu và cổ phương
+
+- Tra cứu hai chiều giữa dược liệu và cổ phương.
+- Tìm dược liệu bằng tên cổ phương liên kết.
+- Tìm cổ phương bằng tên dược liệu liên kết.
+- Chi tiết dược liệu liệt kê cổ phương chứa vị.
+- Chi tiết cổ phương liệt kê dược liệu thành phần.
+- Chỉ hiển thị liên kết có bản dịch đã duyệt.
+- Không dùng bản nháp cho dữ liệu lâm sàng.
+- Phiên bản Epic 34: `4.0.0`.
+
+## Epic 34 — AI hỗ trợ chẩn đoán
+
+- Tổng hợp dữ liệu Vọng, Văn, Vấn, Thiết.
+- Xếp hạng nhiều hội chứng tham khảo.
+- Hiển thị Bát cương và Tạng phủ liên quan.
+- Hiển thị từng căn cứ và độ phù hợp.
+- Không tự chọn chứng chính hoặc xác nhận.
+- Bác sĩ kiểm tra, chỉnh sửa và quyết định.
+
 ## Epic 32 — Hàng đợi kiểm duyệt dược liệu
 
 - Thêm nút `Thêm dược liệu` trên thanh công cụ.

@@ -1,4 +1,4 @@
 """AI Traditional Chinese Medicine Expert."""
 
-__version__ = "3.8.1"
-__display_version__ = "3.8.1 — Epic 32 Hotfix"
+__version__ = "4.0.0"
+__display_version__ = "4.0.0 — Epic 34"

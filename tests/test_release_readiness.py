@@ -6,7 +6,7 @@ from tcm_expert.services.syndrome_reasoner import suggest
 
 
 def test_stable_version():
-    assert __version__ == "3.1.0"
+    assert __version__ == "4.0.0"
 
 
 def test_reference_initialization_performance(tmp_path):
@@ -26,6 +26,8 @@ def test_reasoning_is_transparent_and_bounded(tmp_path):
     assert results
     assert results[0]["matched"]
     assert 0.0 < results[0]["confidence"] <= 0.95
+    assert results[0]["organ_systems"] == "Tỳ"
+    assert results[0]["review_required"] is True
 
 
 def test_empty_input_never_infers_a_syndrome(tmp_path):

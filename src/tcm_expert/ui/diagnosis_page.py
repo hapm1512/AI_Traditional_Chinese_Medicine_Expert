@@ -665,6 +665,16 @@ class SyndromeEditor(QWidget):
         buttons.addWidget(remove)
         buttons.addStretch()
         layout.addLayout(buttons)
+        self.ai_results = QTableWidget(0, 6)
+        self.ai_results.setHorizontalHeaderLabels(
+            ("Gợi ý AI", "Bát cương", "Tạng phủ", "Căn cứ", "Phù hợp", "Trạng thái")
+        )
+        self.ai_results.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.ai_results.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.ai_results.horizontalHeader().setStretchLastSection(True)
+        self.ai_results.itemSelectionChanged.connect(self.load_ai_result)
+        layout.addWidget(QLabel("Kết quả phân tích tổng hợp Tứ chẩn"))
+        layout.addWidget(self.ai_results)
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
             ("Hội chứng", "Bát cương", "Phép trị", "Phù hợp", "Chứng chính", "Xác nhận")
@@ -714,16 +724,40 @@ class SyndromeEditor(QWidget):
             QMessageBox.information(self, "Chưa chọn", "Hãy chọn lần khám trước.")
             return
         results = suggest(self.repository.clinical_text(self.consultation_id), self.syndromes)
+        self.ai_results.setRowCount(len(results))
+        for row_index, result in enumerate(results):
+            values = (
+                result["name"],
+                result["eight_principles"] or "—",
+                result["organ_systems"],
+                "; ".join(result["matched"]),
+                f"{round(result['confidence'] * 100)}%",
+                "Chờ bác sĩ duyệt",
+            )
+            for column, value in enumerate(values):
+                cell = QTableWidgetItem(str(value))
+                cell.setData(Qt.ItemDataRole.UserRole, result)
+                self.ai_results.setItem(row_index, column, cell)
         if not results:
             QMessageBox.information(self, "Chưa đủ căn cứ", "Chưa tìm thấy mẫu phù hợp rõ ràng.")
             return
-        result = results[0]
+        self.ai_results.selectRow(0)
+        QMessageBox.information(
+            self,
+            "Phân tích hoàn tất",
+            f"Có {len(results)} gợi ý tham khảo. Bác sĩ chọn, kiểm tra và xác nhận.",
+        )
+
+    def load_ai_result(self) -> None:
+        items = self.ai_results.selectedItems()
+        if not items:
+            return
+        result = items[0].data(Qt.ItemDataRole.UserRole)
         self.syndrome.setCurrentIndex(self.syndrome.findData(result["id"]))
         self.confidence.setValue(round(result["confidence"] * 100))
         self.evidence.setPlainText("; ".join(result["matched"]))
-        QMessageBox.information(
-            self, "Gợi ý tham khảo", f"Gợi ý cao nhất: {result['name']}. Bác sĩ cần xác nhận."
-        )
+        self.primary.setChecked(False)
+        self.confirmed.setChecked(False)
 
     def save(self) -> None:
         if self.consultation_id is None:
