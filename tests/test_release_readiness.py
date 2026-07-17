@@ -6,7 +6,7 @@ from tcm_expert.services.syndrome_reasoner import suggest
 
 
 def test_stable_version():
-    assert __version__ == "4.0.0"
+    assert __version__ == "4.1.0"
 
 
 def test_reference_initialization_performance(tmp_path):

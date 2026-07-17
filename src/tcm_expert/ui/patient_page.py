@@ -1,8 +1,9 @@
+from datetime import date, datetime
+
 from PySide6.QtCore import QDate, QRegularExpression, Qt
 from PySide6.QtGui import QRegularExpressionValidator
 from PySide6.QtWidgets import (
     QComboBox,
-    QDateEdit,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -22,6 +23,22 @@ from PySide6.QtWidgets import (
 
 from tcm_expert.database import ConsultationRepository, PatientRepository, SettingsRepository
 from tcm_expert.database.manager import DatabaseManager
+
+
+def parse_birth_date(value: str) -> str:
+    """Convert the manual Vietnamese date format to SQLite ISO format."""
+    text = value.replace("_", "").strip()
+    if not text or not text.replace("/", "").strip():
+        return ""
+    try:
+        parsed = datetime.strptime(text, "%d/%m/%Y").date()
+    except ValueError as error:
+        raise ValueError("Ngày sinh phải đúng định dạng dd/mm/yyyy.") from error
+    if parsed > date.today():
+        raise ValueError("Ngày sinh không được ở tương lai.")
+    if parsed.year < 1900:
+        raise ValueError("Năm sinh phải từ 1900 trở đi.")
+    return parsed.isoformat()
 
 
 class PatientDialog(QDialog):
@@ -52,12 +69,12 @@ class PatientDialog(QDialog):
         if not patient:
             self._suggest_number()
         self.name = QLineEdit(str(values.get("full_name", "")))
-        self.birth = QDateEdit(calendarPopup=True)
-        self.birth.setDisplayFormat("dd/MM/yyyy")
-        self.birth.setSpecialValueText("Chưa nhập")
-        self.birth.setMinimumDate(QDate(1900, 1, 1))
-        date = QDate.fromString(str(values.get("birth_date") or ""), "yyyy-MM-dd")
-        self.birth.setDate(date if date.isValid() else self.birth.minimumDate())
+        self.birth = QLineEdit()
+        self.birth.setInputMask("00/00/0000;_")
+        self.birth.setPlaceholderText("dd/mm/yyyy")
+        saved_birth = QDate.fromString(str(values.get("birth_date") or ""), "yyyy-MM-dd")
+        if saved_birth.isValid():
+            self.birth.setText(saved_birth.toString("dd/MM/yyyy"))
         self.sex = QComboBox()
         for key, text in self.SEXES:
             self.sex.addItem(text, key)
@@ -103,11 +120,7 @@ class PatientDialog(QDialog):
             self.number.setText(self.patients.next_number(prefix))
 
     def values(self) -> dict[str, str]:
-        birth_date = (
-            ""
-            if self.birth.date() == self.birth.minimumDate()
-            else self.birth.date().toString("yyyy-MM-dd")
-        )
+        birth_date = parse_birth_date(self.birth.text())
         return {
             "code": f"{self.group.currentData() or ''}{self.number.text()}",
             "full_name": self.name.text(),
@@ -120,6 +133,16 @@ class PatientDialog(QDialog):
             "allergies": self.allergies.toPlainText(),
             "notes": self.notes.toPlainText(),
         }
+
+    def accept(self) -> None:
+        try:
+            parse_birth_date(self.birth.text())
+        except ValueError as error:
+            QMessageBox.warning(self, "Ngày sinh không hợp lệ", str(error))
+            self.birth.setFocus()
+            self.birth.selectAll()
+            return
+        super().accept()
 
 
 class ConsultationDialog(QDialog):

@@ -241,11 +241,16 @@ class ClinicalSupportPage(QWidget):
             "",
             "GỢI Ý BÀI THUỐC THAM KHẢO:",
             *(
+                [f"• {report['formula_blocked_reason']}"]
+                if not report.get("formula_eligible", True)
+                else []
+            ),
+            *(
                 [
                     f"• {item['name']} — điểm {item['score']}"
                     for item in report["formula_suggestions"]
                 ]
-                or ["• Chưa có"]
+                or (["• Chưa có"] if report.get("formula_eligible", True) else [])
             ),
             "",
             "CẢNH BÁO AN TOÀN:",

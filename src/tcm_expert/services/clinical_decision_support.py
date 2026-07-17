@@ -91,7 +91,7 @@ class ClinicalDecisionSupport:
             }
             for row in syndromes
         ]
-        formula_result = self.recommender.recommend(consultation_id)
+        formula_result = self.recommender.recommend(consultation_id, confirmed_only=True)
         safety_alerts = [
             alert for item in formula_result["recommendations"] for alert in item["safety"]
         ]
@@ -111,6 +111,8 @@ class ClinicalDecisionSupport:
                 {"name": item["name"], "score": item["score"], "matched": item["matched"]}
                 for item in formula_result["recommendations"]
             ],
+            "formula_eligible": formula_result["eligible"],
+            "formula_blocked_reason": formula_result["blocked_reason"],
             "safety_alerts": safety_alerts,
             "disclaimer": DISCLAIMER,
         }

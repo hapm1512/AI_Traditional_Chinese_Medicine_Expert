@@ -38,8 +38,20 @@ class FormulaRecommender:
     def __init__(self, database: DatabaseManager):
         self.database = database
 
-    def recommend(self, consultation_id: int, limit: int = 3) -> dict[str, Any]:
-        context = self._context(consultation_id)
+    def recommend(
+        self, consultation_id: int, limit: int = 3, *, confirmed_only: bool = False
+    ) -> dict[str, Any]:
+        context = self._context(consultation_id, confirmed_only=confirmed_only)
+        if confirmed_only and not context.treatment_principles:
+            return {
+                "principles": ["Chưa có hội chứng được bác sĩ xác nhận"],
+                "recommendations": [],
+                "eligible": False,
+                "blocked_reason": (
+                    "Bác sĩ phải xác nhận ít nhất một hội chứng trước khi AI gợi ý bài thuốc."
+                ),
+                "disclaimer": DISCLAIMER,
+            }
         with self.database.transaction() as connection:
             formulas = connection.execute(
                 """SELECT * FROM formulas WHERE active=1
@@ -67,10 +79,14 @@ class FormulaRecommender:
         return {
             "principles": principles,
             "recommendations": ranked[:limit],
+            "eligible": True,
+            "blocked_reason": "",
             "disclaimer": DISCLAIMER,
         }
 
-    def _context(self, consultation_id: int) -> RecommendationContext:
+    def _context(
+        self, consultation_id: int, *, confirmed_only: bool = False
+    ) -> RecommendationContext:
         with self.database.transaction() as connection:
             row = connection.execute(
                 """SELECT c.*, p.allergies, p.sex
@@ -88,8 +104,9 @@ class FormulaRecommender:
                    FROM consultation_syndromes cs
                    JOIN tcm_syndromes s ON s.id=cs.syndrome_id
                    WHERE cs.consultation_id=?
+                     AND (?=0 OR cs.doctor_confirmed=1)
                    ORDER BY cs.is_primary DESC, cs.confidence DESC""",
-                (consultation_id,),
+                (consultation_id, int(confirmed_only)),
             ).fetchall()
         parts = [str(value or "") for value in row]
         if inquiry:

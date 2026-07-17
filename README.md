@@ -1,5 +1,15 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 35 — AI gợi ý bài thuốc có kiểm soát
+
+- Chỉ gợi ý sau khi bác sĩ xác nhận hội chứng.
+- Xếp hạng bài thuốc theo pháp trị và triệu chứng.
+- Hiển thị căn cứ phù hợp của từng bài thuốc.
+- Kiểm tra dị ứng, độc tính và tương tác.
+- Không tự tạo đơn, liều dùng hoặc gia giảm.
+- Bác sĩ quyết định toàn bộ bước kê đơn.
+- Phiên bản Epic 35: `4.1.0`.
+
 ## Epic 33 — Liên kết dược liệu và cổ phương
 
 - Tra cứu hai chiều giữa dược liệu và cổ phương.
