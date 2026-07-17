@@ -764,4 +764,16 @@ MIGRATIONS: tuple[tuple[int, str], ...] = (
             FOREIGN KEY(herb_id) REFERENCES materia_medica(id) ON DELETE CASCADE
         );
     """),
+    (26, """
+        CREATE TABLE app_user_positions (
+            user_id INTEGER NOT NULL,
+            position TEXT NOT NULL CHECK(position IN ('doctor','nurse')),
+            PRIMARY KEY(user_id,position),
+            FOREIGN KEY(user_id) REFERENCES app_users(id) ON DELETE CASCADE
+        );
+        INSERT OR IGNORE INTO app_user_positions(user_id,position)
+            SELECT id,role FROM app_users WHERE role IN ('doctor','nurse');
+        CREATE INDEX idx_app_user_positions_position
+            ON app_user_positions(position,user_id);
+    """),
 )

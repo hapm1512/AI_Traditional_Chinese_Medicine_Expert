@@ -4,6 +4,7 @@ from typing import Any
 
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.services.formula_recommender import FormulaRecommender
+from tcm_expert.services.ollama_formula_recommender import FormulaRecommendationOutcome
 
 DISCLAIMER = (
     "Báo cáo hỗ trợ quyết định, không phải chẩn đoán hay đơn thuốc. "
@@ -28,7 +29,11 @@ class ClinicalDecisionSupport:
         self.database = database
         self.recommender = FormulaRecommender(database)
 
-    def build(self, consultation_id: int) -> dict[str, Any]:
+    def build(
+        self,
+        consultation_id: int,
+        formula_outcome: FormulaRecommendationOutcome | None = None,
+    ) -> dict[str, Any]:
         with self.database.transaction() as connection:
             consultation = connection.execute(
                 """SELECT c.*,p.code patient_code,p.full_name,p.allergies
@@ -91,7 +96,11 @@ class ClinicalDecisionSupport:
             }
             for row in syndromes
         ]
-        formula_result = self.recommender.recommend(consultation_id, confirmed_only=True)
+        formula_result = (
+            formula_outcome.result
+            if formula_outcome is not None
+            else self.recommender.recommend(consultation_id, confirmed_only=True)
+        )
         safety_alerts = [
             alert for item in formula_result["recommendations"] for alert in item["safety"]
         ]
@@ -108,11 +117,19 @@ class ClinicalDecisionSupport:
             "syndrome_suggestions": suggestions,
             "treatment_principles": formula_result["principles"],
             "formula_suggestions": [
-                {"name": item["name"], "score": item["score"], "matched": item["matched"]}
+                {
+                    "name": item["name"],
+                    "score": item["score"],
+                    "matched": item["matched"],
+                    "reason": item.get("ai_reason", ""),
+                }
                 for item in formula_result["recommendations"]
             ],
             "formula_eligible": formula_result["eligible"],
             "formula_blocked_reason": formula_result["blocked_reason"],
+            "formula_source": formula_outcome.source if formula_outcome else "rules",
+            "formula_model": formula_outcome.model if formula_outcome else "",
+            "formula_fallback_reason": formula_outcome.fallback_reason if formula_outcome else "",
             "safety_alerts": safety_alerts,
             "disclaimer": DISCLAIMER,
         }

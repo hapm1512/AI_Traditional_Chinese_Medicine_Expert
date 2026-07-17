@@ -35,7 +35,7 @@ class AudioPage(QWidget):
         ("Khác", "other"),
     )
 
-    def __init__(self, database: DatabaseManager):
+    def __init__(self, database: DatabaseManager, embedded: bool = False):
         super().__init__()
         self.database = database
         self.repository = AudioAnalysisRepository(database)
@@ -43,6 +43,7 @@ class AudioPage(QWidget):
         self.analyzer = AudioAnalyzer()
         self.source_path: Path | None = None
         self.analysis_id: int | None = None
+        self.embedded = embedded
         self._build_ui()
         self.refresh_consultations()
 
@@ -50,6 +51,7 @@ class AudioPage(QWidget):
         root = QVBoxLayout(self)
         title = QLabel("HỖ TRỢ CHẨN ĐOÁN ÂM THANH")
         title.setObjectName("title")
+        title.setVisible(not self.embedded)
         root.addWidget(title)
         warning = QLabel("Chỉ mô tả tín hiệu. Không tự kết luận bệnh. Bác sĩ phải xác nhận.")
         warning.setObjectName("warning")
@@ -64,7 +66,10 @@ class AudioPage(QWidget):
         choose.clicked.connect(self.choose_audio)
         analyze = QPushButton("AI đánh giá")
         analyze.clicked.connect(self.analyze_audio)
-        toolbar.addWidget(QLabel("Mã BN / lần khám"))
+        self.consultation_label = QLabel("Mã BN / lần khám")
+        self.consultation_label.setVisible(not self.embedded)
+        self.consultation.setVisible(not self.embedded)
+        toolbar.addWidget(self.consultation_label)
         toolbar.addWidget(self.consultation, 1)
         toolbar.addWidget(self.sample_type)
         toolbar.addWidget(choose)
@@ -113,6 +118,11 @@ class AudioPage(QWidget):
         )
         self.history.itemSelectionChanged.connect(self.load_selected)
         root.addWidget(self.history, 1)
+
+    def set_consultation(self, consultation_id: int | None) -> None:
+        index = self.consultation.findData(consultation_id)
+        self.consultation.setCurrentIndex(index if index >= 0 else 0)
+        self.refresh_history()
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)

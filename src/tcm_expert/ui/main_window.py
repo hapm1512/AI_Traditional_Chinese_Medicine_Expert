@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
 from tcm_expert import __display_version__
 from tcm_expert.database import FollowupAppointmentRepository, SettingsRepository
 from tcm_expert.database.manager import DatabaseManager
-from tcm_expert.ui.audio_page import AudioPage
 from tcm_expert.ui.appointment_page import AppointmentPage
 from tcm_expert.ui.clinical_support_page import ClinicalSupportPage
 from tcm_expert.ui.diagnosis_page import DiagnosisPage
@@ -29,7 +28,6 @@ from tcm_expert.ui.outcome_report_page import OutcomeReportPage
 from tcm_expert.ui.patient_page import PatientPage
 from tcm_expert.ui.prescription_page import PrescriptionPage
 from tcm_expert.ui.settings_page import SettingsPage
-from tcm_expert.ui.tongue_page import TonguePage
 from tcm_expert.database.user_repository import UserRepository
 from tcm_expert.security import UserSession, set_current_user
 from tcm_expert.ui.login_dialog import ChangePasswordDialog, LoginDialog
@@ -122,6 +120,8 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(960, 600)
         if session is None:
             raise ValueError("Phiên đăng nhập không hợp lệ.")
+        # Đồng bộ phiên trước khi các trang kiểm tra quyền lúc khởi tạo.
+        set_current_user(session)
         self.database = database
         self.session = session
         self.users = UserRepository(database)
@@ -140,8 +140,6 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(self.dashboard_page)
         self.pages.addWidget(PatientPage(database))
         self.pages.addWidget(DiagnosisPage(database))
-        self.pages.addWidget(TonguePage(database))
-        self.pages.addWidget(AudioPage(database))
         self.pages.addWidget(MateriaMedicaPage(database))
         self.pages.addWidget(FormulaPage(database))
         self.pages.addWidget(PrescriptionPage(database))
@@ -150,10 +148,16 @@ class MainWindow(QMainWindow):
         self.pages.addWidget(AppointmentPage(database))
         self.pages.addWidget(OutcomeReportPage(database))
         self.pages.addWidget(SettingsPage(database))
-        self.pages.addWidget(UserManagementPage(database))
-        self.pages.addWidget(AuditLogPage(database))
-        self.backup_page = BackupPage(database)
-        self.backup_page.restored.connect(self.close)
+        if session.is_admin:
+            self.pages.addWidget(UserManagementPage(database))
+            self.pages.addWidget(AuditLogPage(database))
+            self.backup_page = BackupPage(database)
+            self.backup_page.restored.connect(self.close)
+        else:
+            # Giữ nguyên chỉ số menu, không khởi tạo trang quản trị.
+            self.pages.addWidget(self._restricted_page())
+            self.pages.addWidget(self._restricted_page())
+            self.backup_page = self._restricted_page()
         self.pages.addWidget(self.backup_page)
         layout.addWidget(self._sidebar())
         layout.addWidget(self.pages, 1)
@@ -168,6 +172,15 @@ class MainWindow(QMainWindow):
         self.session_timer.timeout.connect(self.check_session_timeout)
         self.session_timer.start()
         QApplication.instance().installEventFilter(self)
+
+    @staticmethod
+    def _restricted_page() -> QWidget:
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        message = QLabel("Trang này chỉ dành cho quản trị viên.")
+        message.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(message)
+        return page
 
     def eventFilter(self, watched, event):
         if event.type() in {
@@ -197,6 +210,13 @@ class MainWindow(QMainWindow):
             self.close()
             return
         self.session = login.session
+        from tcm_expert.app import choose_work_position
+
+        selected = choose_work_position(self.session, self)
+        if selected is None:
+            self.close()
+            return
+        self.session = selected
         set_current_user(self.session)
         self.last_activity = datetime.now()
         self.apply_permissions()
@@ -257,8 +277,6 @@ class MainWindow(QMainWindow):
                 "Tổng quan",
                 "Quản lý bệnh nhân",
                 "Hỗ trợ chẩn đoán",
-                "AI phân tích lưỡi",
-                "AI phân tích âm thanh",
                 "Tra cứu dược",
                 "Bài thuốc tham khảo",
                 "Đơn thuốc bác sĩ",
@@ -283,7 +301,9 @@ class MainWindow(QMainWindow):
                 button.setChecked(True)
             layout.addWidget(button)
         layout.addStretch()
-        user_label = QLabel(f"{self.session.full_name}\n{self.role_label(self.session.role)}")
+        user_label = QLabel(
+            f"{self.session.full_name}\n{self.session_label(self.session)}"
+        )
         user_label.setWordWrap(True)
         layout.addWidget(user_label)
         change_password = QPushButton("Đổi mật khẩu")
@@ -300,14 +320,21 @@ class MainWindow(QMainWindow):
     def role_label(role: str) -> str:
         return {"admin": "Quản trị", "doctor": "Bác sĩ", "nurse": "Y tá"}.get(role, role)
 
+    @classmethod
+    def session_label(cls, session: UserSession) -> str:
+        active = session.active_position or session.role
+        if session.is_admin and active != "admin":
+            return f"Quản trị • {cls.role_label(active)}"
+        return cls.role_label(active)
+
     def change_password(self) -> None:
         ChangePasswordDialog(self.users, self.session.user_id, parent=self).exec()
 
     def apply_permissions(self) -> None:
         allowed = {
-            "admin": set(range(16)),
-            "doctor": set(range(13)),
-            "nurse": {0, 1, 2, 3, 4, 9, 10},
+            "admin": set(range(14)),
+            "doctor": set(range(11)),
+            "nurse": {0, 1, 2, 7, 8},
         }[self.session.role]
         for index in range(self.pages.count()):
             button = self.menu_group.button(index)
@@ -318,9 +345,9 @@ class MainWindow(QMainWindow):
 
     def open_page(self, page: int) -> None:
         allowed = {
-            "admin": set(range(16)),
-            "doctor": set(range(13)),
-            "nurse": {0, 1, 2, 3, 4, 9, 10},
+            "admin": set(range(14)),
+            "doctor": set(range(11)),
+            "nurse": {0, 1, 2, 7, 8},
         }[self.session.role]
         if page not in allowed:
             return

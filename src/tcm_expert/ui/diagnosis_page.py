@@ -34,6 +34,8 @@ from tcm_expert.services.ollama_syndrome_analyzer import (
     OllamaSyndromeAnalyzer,
     SyndromeAnalysisOutcome,
 )
+from tcm_expert.ui.audio_page import AudioPage
+from tcm_expert.ui.tongue_page import TonguePage
 
 METHODS = (
     ("vong", "Vọng chẩn", "Sắc diện, hình thể, lưỡi..."),
@@ -897,7 +899,9 @@ class DiagnosisPage(QWidget):
         tabs = QTabWidget()
         for method, name, hint in METHODS:
             editor = (
-                ListeningSmellingEditor(self.consultations)
+                TonguePage(database, embedded=True)
+                if method == "vong"
+                else AudioPage(database, embedded=True)
                 if method == "van"
                 else InquiryEditor(self.consultations)
                 if method == "van_hoi"

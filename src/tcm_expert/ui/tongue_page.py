@@ -29,7 +29,7 @@ from tcm_expert.services.tongue_analyzer import TongueAnalyzer
 
 
 class TonguePage(QWidget):
-    def __init__(self, database: DatabaseManager):
+    def __init__(self, database: DatabaseManager, embedded: bool = False):
         super().__init__()
         self.database = database
         self.repository = TongueAnalysisRepository(database)
@@ -37,6 +37,7 @@ class TonguePage(QWidget):
         self.analyzer = TongueAnalyzer()
         self.source_path: Path | None = None
         self.analysis_id: int | None = None
+        self.embedded = embedded
         self._build_ui()
         self.refresh_consultations()
 
@@ -44,6 +45,7 @@ class TonguePage(QWidget):
         root = QVBoxLayout(self)
         title = QLabel("AI PHÂN TÍCH LƯỠI")
         title.setObjectName("title")
+        title.setVisible(not self.embedded)
         root.addWidget(title)
         warning = QLabel("Kết quả mô tả ảnh, không phải chẩn đoán. Bác sĩ phải kiểm tra.")
         warning.setObjectName("warning")
@@ -55,7 +57,10 @@ class TonguePage(QWidget):
         choose.clicked.connect(self.choose_image)
         analyze = QPushButton("AI đánh giá")
         analyze.clicked.connect(self.analyze_image)
-        toolbar.addWidget(QLabel("Mã BN / lần khám"))
+        self.consultation_label = QLabel("Mã BN / lần khám")
+        self.consultation_label.setVisible(not self.embedded)
+        self.consultation.setVisible(not self.embedded)
+        toolbar.addWidget(self.consultation_label)
         toolbar.addWidget(self.consultation, 1)
         toolbar.addWidget(choose)
         toolbar.addWidget(analyze)
@@ -111,6 +116,11 @@ class TonguePage(QWidget):
         )
         self.history.itemSelectionChanged.connect(self.load_selected)
         root.addWidget(self.history)
+
+    def set_consultation(self, consultation_id: int | None) -> None:
+        index = self.consultation.findData(consultation_id)
+        self.consultation.setCurrentIndex(index if index >= 0 else 0)
+        self.refresh_history()
 
     def showEvent(self, event: QShowEvent) -> None:
         super().showEvent(event)

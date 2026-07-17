@@ -199,6 +199,11 @@ class FormulaRepository:
         modifications = optional_text(values.get("modifications"), 2000)
         safety_notes = optional_text(values.get("safety_notes"), 2000)
         approved = int(bool(values.get("doctor_approved", False)))
+        if approved:
+            from tcm_expert.security import current_user, require_role
+
+            if current_user() is not None:
+                require_role("doctor")
         if approved and not safety_notes:
             raise ValueError("Cần ghi chú an toàn trước khi bác sĩ phê duyệt.")
         with self.database.transaction() as connection:

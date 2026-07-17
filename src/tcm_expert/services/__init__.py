@@ -11,6 +11,10 @@ from tcm_expert.services.ollama_syndrome_analyzer import (
     OllamaSyndromeAnalyzer,
     SyndromeAnalysisOutcome,
 )
+from tcm_expert.services.ollama_formula_recommender import (
+    FormulaRecommendationOutcome,
+    OllamaFormulaRecommender,
+)
 from tcm_expert.services.tongue_analyzer import TongueAnalysisResult, TongueAnalyzer
 
 __all__ = [
@@ -22,6 +26,8 @@ __all__ = [
     "OllamaFormulaTranslator",
     "OllamaHerbTranslator",
     "OllamaSyndromeAnalyzer",
+    "FormulaRecommendationOutcome",
+    "OllamaFormulaRecommender",
     "SyndromeAnalysisOutcome",
     "MateriaMedicaSync",
     "HerbSyncResult",

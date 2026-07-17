@@ -8,6 +8,8 @@ class UserSession:
     full_name: str
     role: str
     session_id: int
+    positions: tuple[str, ...] = ()
+    active_position: str = ""
 
     @property
     def is_admin(self) -> bool:
@@ -15,7 +17,12 @@ class UserSession:
 
     @property
     def is_doctor(self) -> bool:
-        return self.role == "doctor"
+        return self.has_position("doctor")
+
+    def has_position(self, position: str) -> bool:
+        if self.active_position:
+            return self.active_position == position
+        return position in self.positions or self.role == position
 
 
 _current: UserSession | None = None
@@ -32,6 +39,11 @@ def current_user() -> UserSession | None:
 
 def require_role(*roles: str) -> UserSession:
     user = current_user()
-    if user is None or user.role not in roles:
+    allowed = user is not None and any(
+        (role == "admin" and user.role == "admin")
+        or (role in {"doctor", "nurse"} and user.has_position(role))
+        for role in roles
+    )
+    if not allowed:
         raise PermissionError("Tài khoản không có quyền thực hiện thao tác này.")
     return user

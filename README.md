@@ -1,5 +1,28 @@
 # AI Traditional Chinese Medicine Expert
 
+## Epic 37 — Qwen gợi ý bài thuốc có kiểm soát
+
+- Chỉ chạy sau khi bác sĩ xác nhận hội chứng.
+- Qwen chỉ xếp hạng bài thuốc trong danh mục hệ thống.
+- Giữ nguyên cảnh báo dị ứng, độc tính và tương tác.
+- Không tạo bài thuốc, liều dùng hoặc gia giảm.
+- Tự dùng xếp hạng luật khi Ollama không hoạt động.
+- Mọi kết quả đều chờ bác sĩ kiểm tra và quyết định.
+- Sửa lỗi tài khoản thường không thể khởi động ứng dụng.
+- Giữ đầy đủ quyền và trang quản trị cho Admin.
+- Tách quyền hệ thống khỏi cương vị chuyên môn.
+- Một tài khoản được kiêm Bác sĩ và Y tá.
+- Chọn cương vị làm việc sau khi đăng nhập.
+- Admin chỉ duyệt chuyên môn khi kiêm Bác sĩ.
+- Tự phục hồi tài khoản Admin bị hạ quyền nhầm.
+- Không cho hạ quyền quản trị viên cuối cùng.
+- Hiển thị rõ Admin đang kiêm cương vị nào.
+- Chuyển AI lưỡi vào tab Vọng chẩn.
+- Chuyển AI âm thanh vào tab Văn chẩn.
+- Bỏ hai menu AI riêng khỏi thanh bên.
+- Biện chứng dùng đủ dữ liệu bốn chẩn.
+- Phiên bản Epic 37: `4.3.4`.
+
 ## Epic 36 — AI phân tích Tứ chẩn bằng Ollama/Qwen
 
 - Gọi Qwen cục bộ qua Ollama khi bác sĩ yêu cầu.

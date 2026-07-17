@@ -35,6 +35,11 @@ class SyndromeRepository:
             raise ValueError("Độ phù hợp phải từ 0 đến 100%")
         is_primary = int(bool(values.get("is_primary")))
         confirmed = int(bool(values.get("doctor_confirmed")))
+        if confirmed:
+            from tcm_expert.security import current_user, require_role
+
+            if current_user() is not None:
+                require_role("doctor")
         evidence = optional_text(values.get("evidence"), 5000)
         with self.database.transaction() as connection:
             if is_primary:
@@ -87,11 +92,26 @@ class SyndromeRepository:
                 "FROM palpation_findings WHERE consultation_id=?",
                 (consultation_id,),
             ).fetchall()
+            tongue = connection.execute(
+                """SELECT tongue_color,coating_color,coating_thickness,teeth_marks,cracks,
+                          doctor_tongue_color,doctor_coating_color,
+                          doctor_coating_thickness,doctor_teeth_marks,doctor_cracks,doctor_note
+                   FROM tongue_analyses WHERE consultation_id=?
+                   ORDER BY reviewed_at IS NOT NULL DESC,id DESC LIMIT 1""",
+                (consultation_id,),
+            ).fetchone()
+            audio = connection.execute(
+                """SELECT sample_type,manual_characteristic,pattern_label,
+                          doctor_pattern_label,doctor_note
+                   FROM audio_analyses WHERE consultation_id=?
+                   ORDER BY reviewed_at IS NOT NULL DESC,id DESC LIMIT 5""",
+                (consultation_id,),
+            ).fetchall()
         parts: list[str] = []
-        for row in (consultation, inquiry):
+        for row in (consultation, inquiry, tongue):
             if row:
                 parts.extend(str(value) for value in row if value)
-        for rows in (diagnostics, pulses, touches):
+        for rows in (diagnostics, pulses, touches, audio):
             for row in rows:
                 parts.extend(str(value) for value in row if value)
         return " | ".join(parts)

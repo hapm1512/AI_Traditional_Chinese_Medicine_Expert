@@ -55,7 +55,7 @@ class DashboardPage(QWidget):
         refresh = QPushButton("Làm mới")
         refresh.clicked.connect(self.refresh)
         appointments = QPushButton("Mở lịch tái khám")
-        appointments.clicked.connect(lambda: self.navigate.emit(10))
+        appointments.clicked.connect(lambda: self.navigate.emit(8))
         patients = QPushButton("Mở bệnh nhân")
         patients.clicked.connect(lambda: self.navigate.emit(1))
         actions.addWidget(refresh)
@@ -73,7 +73,7 @@ class DashboardPage(QWidget):
             QHeaderView.ResizeMode.ResizeToContents
         )
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.cellDoubleClicked.connect(lambda _row, _column: self.navigate.emit(10))
+        self.table.cellDoubleClicked.connect(lambda _row, _column: self.navigate.emit(8))
         layout.addWidget(self.table, 1)
         warning = QLabel("⚠ Dashboard hỗ trợ vận hành, không thay thế quyết định bác sĩ.")
         warning.setObjectName("warning")

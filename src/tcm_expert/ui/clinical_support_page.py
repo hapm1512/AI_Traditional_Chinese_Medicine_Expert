@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtGui import QShowEvent
 from PySide6.QtWidgets import (
     QComboBox,
@@ -25,7 +26,24 @@ from tcm_expert.database import (
 )
 from tcm_expert.database.manager import DatabaseManager
 from tcm_expert.services.clinical_decision_support import ClinicalDecisionSupport
+from tcm_expert.services.ollama_formula_recommender import (
+    FormulaRecommendationOutcome,
+    OllamaFormulaRecommender,
+)
 from tcm_expert.ai import AIWorkflowDisabled, create_ai_workflow
+
+
+class FormulaRecommendationWorker(QThread):
+    completed = Signal(object)
+
+    def __init__(self, database: DatabaseManager, consultation_id: int):
+        super().__init__()
+        self.database = database
+        self.consultation_id = consultation_id
+
+    def run(self) -> None:
+        outcome = OllamaFormulaRecommender(self.database).recommend(self.consultation_id)
+        self.completed.emit(outcome)
 
 
 class ClinicalSupportPage(QWidget):
@@ -35,6 +53,8 @@ class ClinicalSupportPage(QWidget):
         self.consultations = ConsultationRepository(database)
         self.reports = ClinicalDecisionRepository(database)
         self.support = ClinicalDecisionSupport(database)
+        self.database = database
+        self._formula_worker: FormulaRecommendationWorker | None = None
         self.settings = SettingsRepository(database)
         self.report_ids: list[int] = []
         layout = QVBoxLayout(self)
@@ -53,12 +73,15 @@ class ClinicalSupportPage(QWidget):
         self.visit.currentIndexChanged.connect(self.refresh_reports)
         generate = QPushButton("Tạo báo cáo hỗ trợ")
         generate.clicked.connect(self.generate)
+        self.formula_generate = QPushButton("Qwen gợi ý bài thuốc")
+        self.formula_generate.clicked.connect(self.generate_formula_ai)
         ai_generate = QPushButton("Đề xuất tham khảo")
         ai_generate.clicked.connect(self.generate_ai)
         for label, widget in (("Bệnh nhân", self.patient), ("Lần khám", self.visit)):
             selectors.addWidget(QLabel(label))
             selectors.addWidget(widget, 1)
         selectors.addWidget(generate)
+        selectors.addWidget(self.formula_generate)
         selectors.addWidget(ai_generate)
         layout.addLayout(selectors)
         self.table = QTableWidget(0, 6)
@@ -162,6 +185,42 @@ class ClinicalSupportPage(QWidget):
         if self.table.rowCount():
             self.table.selectRow(0)
 
+    def generate_formula_ai(self) -> None:
+        consultation_id = self.visit.currentData()
+        if consultation_id is None:
+            QMessageBox.warning(self, "Thiếu dữ liệu", "Hãy chọn lần khám.")
+            return
+        if self._formula_worker is not None and self._formula_worker.isRunning():
+            return
+        self.formula_generate.setEnabled(False)
+        self.formula_generate.setText("Qwen đang phân tích...")
+        self._formula_worker = FormulaRecommendationWorker(self.database, int(consultation_id))
+        self._formula_worker.completed.connect(self._save_formula_ai_report)
+        self._formula_worker.finished.connect(self._formula_worker.deleteLater)
+        self._formula_worker.start()
+
+    def _save_formula_ai_report(self, outcome: FormulaRecommendationOutcome) -> None:
+        consultation_id = self.visit.currentData()
+        self.formula_generate.setEnabled(True)
+        self.formula_generate.setText("Qwen gợi ý bài thuốc")
+        self._formula_worker = None
+        if consultation_id is None:
+            return
+        report = self.support.build(int(consultation_id), formula_outcome=outcome)
+        self.reports.create(int(consultation_id), report)
+        self.refresh_reports()
+        if self.table.rowCount():
+            self.table.selectRow(0)
+        if not report["formula_eligible"]:
+            QMessageBox.information(self, "Chưa đủ điều kiện", report["formula_blocked_reason"])
+        elif outcome.source == "rules":
+            QMessageBox.information(
+                self,
+                "Đã dùng luật nội bộ",
+                "Ollama không hoạt động; kết quả vẫn chờ bác sĩ kiểm tra.\n"
+                + outcome.fallback_reason,
+            )
+
     def generate_ai(self) -> None:
         consultation_id = self.visit.currentData()
         if consultation_id is None:
@@ -240,6 +299,11 @@ class ClinicalSupportPage(QWidget):
             ),
             "",
             "GỢI Ý BÀI THUỐC THAM KHẢO:",
+            (
+                f"Nguồn: Ollama/{report.get('formula_model')}"
+                if report.get("formula_source") == "ollama"
+                else "Nguồn: Luật nội bộ"
+            ),
             *(
                 [f"• {report['formula_blocked_reason']}"]
                 if not report.get("formula_eligible", True)
@@ -248,6 +312,7 @@ class ClinicalSupportPage(QWidget):
             *(
                 [
                     f"• {item['name']} — điểm {item['score']}"
+                    + (f" — {item['reason']}" if item.get("reason") else "")
                     for item in report["formula_suggestions"]
                 ]
                 or (["• Chưa có"] if report.get("formula_eligible", True) else [])
@@ -264,6 +329,13 @@ class ClinicalSupportPage(QWidget):
         self.detail.setPlainText("\n".join(lines))
 
     def review(self) -> None:
+        from tcm_expert.security import require_role
+
+        try:
+            require_role("doctor")
+        except PermissionError as error:
+            QMessageBox.warning(self, "Không đủ quyền chuyên môn", str(error))
+            return
         row = self.table.currentRow()
         if row < 0 or row >= len(self.report_ids):
             QMessageBox.warning(self, "Thiếu dữ liệu", "Hãy chọn báo cáo.")
@@ -282,6 +354,13 @@ class ClinicalSupportPage(QWidget):
         QMessageBox.information(self, "Đã phê duyệt", "Bác sĩ đã phê duyệt báo cáo.")
 
     def reject(self) -> None:
+        from tcm_expert.security import require_role
+
+        try:
+            require_role("doctor")
+        except PermissionError as error:
+            QMessageBox.warning(self, "Không đủ quyền chuyên môn", str(error))
+            return
         row = self.table.currentRow()
         if row < 0 or row >= len(self.report_ids):
             QMessageBox.warning(self, "Thiếu dữ liệu", "Hãy chọn báo cáo.")

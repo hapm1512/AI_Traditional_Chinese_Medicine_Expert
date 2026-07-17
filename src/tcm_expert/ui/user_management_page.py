@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QCheckBox, QComboBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
     QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
 
@@ -24,9 +24,16 @@ class UserManagementPage(QWidget):
         self.role.addItem("Quản trị", "admin")
         self.role.addItem("Bác sĩ", "doctor")
         self.role.addItem("Y tá", "nurse")
+        positions = QHBoxLayout()
+        self.position_doctor = QCheckBox("Bác sĩ")
+        self.position_nurse = QCheckBox("Y tá")
+        positions.addWidget(self.position_doctor)
+        positions.addWidget(self.position_nurse)
+        positions.addStretch()
         form.addRow("Tên đăng nhập", self.username)
         form.addRow("Họ tên", self.full_name)
         form.addRow("Vai trò", self.role)
+        form.addRow("Cương vị làm việc", positions)
         form.addRow("Mật khẩu mới", self.password)
         layout.addLayout(form)
         actions = QHBoxLayout()
@@ -41,8 +48,8 @@ class UserManagementPage(QWidget):
         actions.addWidget(new); actions.addWidget(save); actions.addWidget(toggle)
         actions.addWidget(delete)
         layout.addLayout(actions)
-        self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(("Tên đăng nhập", "Họ tên", "Vai trò", "Trạng thái", "Đăng nhập cuối"))
+        self.table = QTableWidget(0, 6)
+        self.table.setHorizontalHeaderLabels(("Tên đăng nhập", "Họ tên", "Quyền hệ thống", "Cương vị", "Trạng thái", "Đăng nhập cuối"))
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.horizontalHeader().setStretchLastSection(True)
@@ -55,24 +62,36 @@ class UserManagementPage(QWidget):
         self.table.setRowCount(len(rows))
         roles = {"admin": "Quản trị", "doctor": "Bác sĩ", "nurse": "Y tá"}
         for i, row in enumerate(rows):
-            values = (row["username"], row["full_name"], roles[row["role"]], "Hoạt động" if row["active"] else "Đã khóa", row["last_login_at"] or "")
+            position_names = {"doctor": "Bác sĩ", "nurse": "Y tá"}
+            positions = tuple(filter(None, str(row["positions"]).split(",")))
+            position_label = ", ".join(position_names[item] for item in positions) or "Chưa gán"
+            values = (row["username"], row["full_name"], roles[row["role"]], position_label, "Hoạt động" if row["active"] else "Đã khóa", row["last_login_at"] or "")
             for col, value in enumerate(values):
-                item = QTableWidgetItem(str(value)); item.setData(Qt.ItemDataRole.UserRole, (row["id"], row["role"], bool(row["active"])))
+                item = QTableWidgetItem(str(value)); item.setData(Qt.ItemDataRole.UserRole, (row["id"], row["role"], bool(row["active"]), positions))
                 self.table.setItem(i, col, item)
 
     def load(self):
         items = self.table.selectedItems()
         if not items: return
-        self.user_id, role, _active = items[0].data(Qt.ItemDataRole.UserRole)
+        self.user_id, role, _active, positions = items[0].data(Qt.ItemDataRole.UserRole)
         self.username.setText(items[0].text()); self.full_name.setText(items[1].text())
         self.role.setCurrentIndex(max(0, self.role.findData(role))); self.password.clear()
+        self.position_doctor.setChecked("doctor" in positions)
+        self.position_nurse.setChecked("nurse" in positions)
 
     def clear(self):
         self.user_id = None; self.username.clear(); self.full_name.clear(); self.password.clear(); self.role.setCurrentIndex(2)
+        self.position_doctor.setChecked(False); self.position_nurse.setChecked(True)
 
     def save(self):
         try:
-            self.users.save(self.username.text(), self.full_name.text(), self.role.currentData(), self.password.text(), self.user_id)
+            positions = tuple(
+                position for position, checked in (
+                    ("doctor", self.position_doctor.isChecked()),
+                    ("nurse", self.position_nurse.isChecked()),
+                ) if checked
+            )
+            self.users.save(self.username.text(), self.full_name.text(), self.role.currentData(), self.password.text(), self.user_id, positions)
         except Exception as error:
             QMessageBox.warning(self, "Chưa thể lưu", str(error)); return
         self.clear(); self.refresh(); QMessageBox.information(self, "Đã lưu", "Đã cập nhật tài khoản.")
@@ -80,7 +99,7 @@ class UserManagementPage(QWidget):
     def toggle_active(self):
         items = self.table.selectedItems()
         if not items: return
-        user_id, _role, active = items[0].data(Qt.ItemDataRole.UserRole)
+        user_id, _role, active, _positions = items[0].data(Qt.ItemDataRole.UserRole)
         try: self.users.set_active(int(user_id), not active)
         except ValueError as error: QMessageBox.warning(self, "Chưa thể thay đổi", str(error)); return
         self.refresh()
@@ -90,7 +109,7 @@ class UserManagementPage(QWidget):
         if not items:
             QMessageBox.warning(self, "Chưa chọn tài khoản", "Hãy chọn tài khoản cần xóa.")
             return
-        user_id, _role, _active = items[0].data(Qt.ItemDataRole.UserRole)
+        user_id, _role, _active, _positions = items[0].data(Qt.ItemDataRole.UserRole)
         username = items[0].text()
         full_name = items[1].text()
         answer = QMessageBox.question(

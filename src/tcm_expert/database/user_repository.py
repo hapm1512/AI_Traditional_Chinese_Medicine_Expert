@@ -28,7 +28,30 @@ class UserRepository:
     def ensure_bootstrap_admin(self) -> bool:
         with self.database.transaction() as connection:
             if connection.execute("SELECT 1 FROM app_users LIMIT 1").fetchone():
-                return False
+                active_admin = connection.execute(
+                    "SELECT 1 FROM app_users WHERE role='admin' AND active=1 LIMIT 1"
+                ).fetchone()
+                if active_admin:
+                    return False
+                # Tự phục hồi tài khoản quản trị mặc định nếu bị hạ quyền nhầm.
+                default = connection.execute(
+                    "SELECT id FROM app_users WHERE username=? COLLATE NOCASE",
+                    (self.DEFAULT_USERNAME,),
+                ).fetchone()
+                if default:
+                    connection.execute(
+                        """UPDATE app_users SET role='admin',active=1,
+                           updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                        (default["id"],),
+                    )
+                    self.database.audit(
+                        connection, "restore_admin", "app_user", int(default["id"]),
+                        "Tự phục hồi quản trị viên cuối cùng",
+                    )
+                    return False
+                raise RuntimeError(
+                    "Hệ thống không còn quản trị viên. Cần phục hồi tài khoản admin."
+                )
             salt = os.urandom(16)
             connection.execute(
                 """INSERT INTO app_users
@@ -64,7 +87,16 @@ class UserRepository:
                 (row["id"],),
             )
             cursor = connection.execute("INSERT INTO user_sessions(user_id) VALUES(?)", (row["id"],))
-            session = UserSession(int(row["id"]), row["username"], row["full_name"], row["role"], int(cursor.lastrowid))
+            positions = tuple(
+                item[0] for item in connection.execute(
+                    "SELECT position FROM app_user_positions WHERE user_id=? ORDER BY position",
+                    (row["id"],),
+                )
+            )
+            session = UserSession(
+                int(row["id"]), row["username"], row["full_name"], row["role"],
+                int(cursor.lastrowid), positions,
+            )
             from tcm_expert.security import set_current_user
             set_current_user(session)
             self.database.audit(connection, "login", "user_session", int(cursor.lastrowid), row["role"])
@@ -81,10 +113,17 @@ class UserRepository:
     def list_users(self) -> list:
         with self.database.transaction() as connection:
             return list(connection.execute(
-                "SELECT id,username,full_name,role,active,last_login_at FROM app_users ORDER BY username"
+                """SELECT u.id,u.username,u.full_name,u.role,u.active,u.last_login_at,
+                          COALESCE(GROUP_CONCAT(p.position), '') positions
+                   FROM app_users u
+                   LEFT JOIN app_user_positions p ON p.user_id=u.id
+                   GROUP BY u.id ORDER BY u.username"""
             ))
 
-    def save(self, username: str, full_name: str, role: str, password: str, user_id: int | None = None) -> int:
+    def save(
+        self, username: str, full_name: str, role: str, password: str,
+        user_id: int | None = None, positions: tuple[str, ...] | None = None,
+    ) -> int:
         username, full_name = username.strip(), full_name.strip()
         if not re.fullmatch(r"[A-Za-z0-9_.-]{3,32}", username):
             raise ValueError("Tên đăng nhập cần 3–32 ký tự hợp lệ.")
@@ -103,6 +142,17 @@ class UserRepository:
                 )
                 saved_id = int(cursor.lastrowid)
             else:
+                current = connection.execute(
+                    "SELECT role,active FROM app_users WHERE id=?", (user_id,)
+                ).fetchone()
+                if current is None:
+                    raise ValueError("Không tìm thấy tài khoản.")
+                if current["role"] == "admin" and role != "admin" and current["active"]:
+                    admin_count = connection.execute(
+                        "SELECT COUNT(*) FROM app_users WHERE role='admin' AND active=1"
+                    ).fetchone()[0]
+                    if admin_count <= 1:
+                        raise ValueError("Không thể hạ quyền quản trị viên cuối cùng.")
                 connection.execute(
                     "UPDATE app_users SET username=?,full_name=?,role=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
                     (username, full_name, role, user_id),
@@ -115,7 +165,18 @@ class UserRepository:
                         "UPDATE app_users SET password_hash=?,password_salt=?,must_change_password=1 WHERE id=?",
                         (self._hash(password, salt), salt.hex(), user_id),
                     )
-            self.database.audit(connection, "save", "app_user", saved_id, role)
+            assigned = set(positions if positions is not None else ((role,) if role in {"doctor", "nurse"} else ()))
+            if not assigned <= {"doctor", "nurse"}:
+                raise ValueError("Cương vị làm việc không hợp lệ.")
+            connection.execute("DELETE FROM app_user_positions WHERE user_id=?", (saved_id,))
+            connection.executemany(
+                "INSERT INTO app_user_positions(user_id,position) VALUES(?,?)",
+                [(saved_id, position) for position in sorted(assigned)],
+            )
+            self.database.audit(
+                connection, "save", "app_user", saved_id,
+                f"role={role}; positions={','.join(sorted(assigned))}",
+            )
             return saved_id
 
     def set_active(self, user_id: int, active: bool) -> None:
